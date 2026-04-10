@@ -1,0 +1,35 @@
+[project]
+name = "auto-sdet"
+version = "0.1.0"
+description = "Autonomous Unit Test Generation Agent powered by LangGraph FSM"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    # ── LLM & Agent Framework ──
+    "langgraph>=0.2.0",
+    "langchain-openai>=0.1.0",
+    "langchain-core>=0.2.0",
+    # ── Sandbox Execution ──
+    "e2b-code-interpreter>=2.0.0",
+    # ── MCP (Model Context Protocol) ──
+    "mcp>=1.0.0",
+    # ── Data Validation ──
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    # ── CLI ──
+    "click>=8.1.0",
+    "rich>=13.0.0",
+]
+
+[project.scripts]
+auto-sdet = "auto_sdet.cli:cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/auto_sdet"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
