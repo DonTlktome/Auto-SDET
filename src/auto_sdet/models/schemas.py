@@ -26,6 +26,7 @@ class ExecutionResult(BaseModel):
     exit_code: int = Field(..., description="0 = all tests passed, non-zero = failure")
     duration_ms: int = Field(default=0, description="Execution wall time in milliseconds")
     sandbox_id: str = Field(default="", description="E2B sandbox instance ID for tracing")
+    coverage_pct: Optional[int] = Field(default=None, description="Line coverage percentage (0-100), None if unavailable")
 
 
 # ══════════════════════════════════════════════════════════

@@ -6,6 +6,7 @@ from pathlib import Path
 
 import click
 from rich.console import Console
+from rich.markup import escape
 from rich.panel import Panel
 
 console = Console()
@@ -82,16 +83,18 @@ def test(target: Path, max_retries: int, model: str, output_dir: Path | None, ve
 
         # ── Handle result ───────────────────────────────
         if result["status"] == "done":
-            console.print(f"\n[bold green]✓[/] Tests generated: {output_path}")
+            er = result.get("execution_result")
+            cov_str = f"  |  Coverage: [bold cyan]{er.coverage_pct}%[/]" if er and er.coverage_pct is not None else ""
+            console.print(f"\n[bold green]✓[/] Tests generated: {escape(str(output_path))}{cov_str}")
         else:
             console.print(f"\n[bold red]✗[/] Failed after {result['retry_count']} retries.")
             if result.get("execution_result"):
                 er = result['execution_result']
-                console.print(f"[dim]Last error:[/]\n{(er.stdout + er.stderr)[:500]}")
+                console.print(f"[dim]Last error:[/]\n{escape((er.stdout + er.stderr)[:500])}")
             sys.exit(1)
 
     except Exception as e:
-        console.print(f"[bold red]Error:[/] {e}")
+        console.print(f"[bold red]Error:[/] {escape(str(e))}")
         if verbose:
             console.print_exception()
         sys.exit(1)

@@ -6,6 +6,7 @@ from __future__ import annotations
 import logging
 
 from rich.console import Console
+from rich.markup import escape
 
 from auto_sdet.models.schemas import AgentState
 from auto_sdet.tools.e2b_sandbox import SandboxExecutor
@@ -44,7 +45,8 @@ def executor_node(state: AgentState) -> dict:
 
     # ── Log result ──────────────────────────────────────
     if result.exit_code == 0:
-        console.print("[bold green]✓ [Executor][/]  All tests passed!")
+        cov_str = f"  Coverage: [bold]{result.coverage_pct}%[/]" if result.coverage_pct is not None else ""
+        console.print(f"[bold green]✓ [Executor][/]  All tests passed!{cov_str}")
     else:
         # Skip pytest header lines, show the actual error section
         error_start = full_output.find("ERRORS")
@@ -53,7 +55,7 @@ def executor_node(state: AgentState) -> dict:
         if error_start == -1:
             error_start = full_output.find("ERROR")
         output_preview = full_output[error_start:error_start + 500] if error_start != -1 else full_output[:500]
-        console.print(f"[bold red]✗ [Executor][/]  Tests failed:\n[dim]{output_preview}[/]")
+        console.print(f"[bold red]✗ [Executor][/]  Tests failed:\n[dim]{escape(output_preview)}[/]")
 
     return {
         "execution_result": result,

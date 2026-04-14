@@ -167,23 +167,34 @@ class SandboxExecutor:
             # ── Step 3: Install dependencies ────────────
             try:
                 sandbox.commands.run(
-                    "pip install pytest langgraph langchain-openai langchain-core pydantic pydantic-settings",
+                    "pip install pytest pytest-cov langgraph langchain-openai langchain-core pydantic pydantic-settings",
                     timeout=60,
                 )
             except CommandExitException as e:
                 logger.warning(f"pip install warning: {e.stderr}")
 
-            # ── Step 4: Run pytest ──────────────────────
-            # In e2b 2.x, commands.run() raises CommandExitException on non-zero exit.
-            # Catch it so test failures are treated as normal results, not errors.
+            # ── Step 4: Run pytest with coverage ────────
+            # --cov=<module_name>  targets the source module (no path, no .py)
+            # --cov-report=term-missing  prints uncovered line numbers in stdout
             try:
                 test_result = sandbox.commands.run(
-                    f"cd /workspace && python -m pytest {test_filename} -v",
+                    f"cd /workspace && python -m pytest {test_filename} -v"
+                    f" --cov={module_name} --cov-report=term-missing",
                     timeout=self._timeout,
                 )
                 stdout, stderr, exit_code = test_result.stdout, test_result.stderr, test_result.exit_code
             except CommandExitException as e:
                 stdout, stderr, exit_code = e.stdout, e.stderr, e.exit_code
+
+            # ── Step 5: Parse coverage percentage ───────
+            # pytest-cov output format: "module.py   25   3   88%   45, 67"
+            coverage_pct: int | None = None
+            match = re.search(
+                rf"{re.escape(module_name)}\.py\s+\d+\s+\d+\s+(\d+)%",
+                stdout,
+            )
+            if match:
+                coverage_pct = int(match.group(1))
 
             duration_ms = int((time.time() - start_time) * 1000)
 
@@ -193,6 +204,7 @@ class SandboxExecutor:
                 exit_code=exit_code,
                 duration_ms=duration_ms,
                 sandbox_id=sandbox_id,
+                coverage_pct=coverage_pct,
             )
 
         except Exception as e:

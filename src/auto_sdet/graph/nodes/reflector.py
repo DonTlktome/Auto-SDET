@@ -6,6 +6,7 @@ from __future__ import annotations
 import difflib
 import logging
 
+from rich.markup import escape
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from rich.console import Console
@@ -86,11 +87,11 @@ def reflector_node(state: AgentState) -> dict:
         for line in diff:
             line = line.rstrip("\n")
             if line.startswith("+") and not line.startswith("+++"):
-                console.print(f"[green]{line}[/]")
+                console.print(f"[green]{escape(line)}[/]")
             elif line.startswith("-") and not line.startswith("---"):
-                console.print(f"[red]{line}[/]")
+                console.print(f"[red]{escape(line)}[/]")
             elif line.startswith("@@"):
-                console.print(f"[cyan]{line}[/]")
+                console.print(f"[cyan]{escape(line)}[/]")
 
     console.print("[bold green]✓ [Reflector][/]  Patch applied, re-executing...")
 
