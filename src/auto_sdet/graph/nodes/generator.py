@@ -61,7 +61,7 @@ def generator_node(state: AgentState) -> dict:
     )
 
     # ── Step 3: Call LLM ────────────────────────────────
-    console.print("[bold cyan]✨ [Generator][/]  Calling DeepSeek-V3...")
+    console.print("[bold cyan]✨ [Generator][/]  Calling DeepSeek-V4...")
 
     llm = ChatOpenAI(
         model=settings.deepseek_model,

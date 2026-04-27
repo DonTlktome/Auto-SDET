@@ -1,127 +1,227 @@
-"""
-Test file for calculator.py
-"""
 import pytest
 from calculator import add, subtract, multiply, divide, sqrt, Calculator
 
 
-def test_add():
-    """Test addition function."""
-    assert add(2, 3) == 5
-    assert add(-1, 1) == 0
-    assert add(0, 0) == 0
-    assert add(2.5, 3.5) == 6.0
+# ----------------------------------------------------------------
+# Tests for add
+# ----------------------------------------------------------------
+class TestAdd:
+    """Tests for add() function."""
+
+    @pytest.mark.parametrize(
+        "a, b, expected",
+        [
+            (2, 3, 5),
+            (-2, 3, 1),
+            (0, 0, 0),
+            (1.5, 2.5, 4.0),
+            (-1.1, -2.2, -3.3),
+            (1e10, 1e10, 2e10),
+        ],
+    )
+    def test_add_positive_and_edge_cases(self, a, b, expected):
+        """Test add() with positive, negative, zero, float and large numbers."""
+        result = add(a, b)
+        assert result == pytest.approx(expected)
+
+    def test_add_with_zero(self):
+        """Edge case: adding zero does not change value."""
+        assert add(5, 0) == 5
+        assert add(0, 5) == 5
 
 
-def test_subtract():
-    """Test subtraction function."""
-    assert subtract(5, 3) == 2
-    assert subtract(3, 5) == -2
-    assert subtract(0, 0) == 0
-    assert subtract(2.5, 1.5) == 1.0
+# ----------------------------------------------------------------
+# Tests for subtract
+# ----------------------------------------------------------------
+class TestSubtract:
+    """Tests for subtract() function."""
+
+    @pytest.mark.parametrize(
+        "a, b, expected",
+        [
+            (10, 5, 5),
+            (5, 10, -5),
+            (-3, -3, 0),
+            (0, 0, 0),
+            (1.5, 0.5, 1.0),
+        ],
+    )
+    def test_subtract_positive_and_edge(self, a, b, expected):
+        """Test subtract() with various inputs including zero and negatives."""
+        result = subtract(a, b)
+        assert result == pytest.approx(expected)
+
+    def test_subtract_symmetric(self):
+        """Subtracting a number from itself yields zero."""
+        assert subtract(7, 7) == 0
 
 
-def test_multiply():
-    """Test multiplication function."""
-    assert multiply(2, 3) == 6
-    assert multiply(-2, 3) == -6
-    assert multiply(0, 5) == 0
-    assert multiply(2.5, 4) == 10.0
+# ----------------------------------------------------------------
+# Tests for multiply
+# ----------------------------------------------------------------
+class TestMultiply:
+    """Tests for multiply() function."""
+
+    @pytest.mark.parametrize(
+        "a, b, expected",
+        [
+            (3, 4, 12),
+            (-3, 4, -12),
+            (0, 10, 0),
+            (0, 0, 0),
+            (2.5, 2, 5.0),
+        ],
+    )
+    def test_multiply_positive_and_edge(self, a, b, expected):
+        """Test multiply() with positive, negative, zero, and floats."""
+        result = multiply(a, b)
+        assert result == pytest.approx(expected)
+
+    def test_multiply_by_one(self):
+        """Edge case: multiplication by 1 returns the same number."""
+        assert multiply(42, 1) == 42
 
 
-def test_divide():
-    """Test division function."""
-    assert divide(6, 3) == 2
-    assert divide(5, 2) == 2.5
-    assert divide(0, 5) == 0
-    
-    # Test division by zero raises ValueError
-    with pytest.raises(ValueError, match="Cannot divide by zero"):
-        divide(5, 0)
+# ----------------------------------------------------------------
+# Tests for divide
+# ----------------------------------------------------------------
+class TestDivide:
+    """Tests for divide() function."""
 
+    @pytest.mark.parametrize(
+        "a, b, expected",
+        [
+            (6, 2, 3),
+            (6, -2, -3),
+            (0, 5, 0),
+            (2.5, 0.5, 5.0),
+        ],
+    )
+    def test_divide_happy_path(self, a, b, expected):
+        """Test divide() with valid non-zero divisors."""
+        result = divide(a, b)
+        assert result == pytest.approx(expected)
 
-def test_sqrt():
-    """Test square root function."""
-    assert sqrt(4) == 2
-    assert sqrt(0) == 0
-    assert sqrt(2.25) == 1.5
-    
-    # Test negative input raises ValueError
-    with pytest.raises(ValueError, match="Cannot compute square root of negative number"):
-        sqrt(-1)
-
-
-class TestCalculator:
-    """Test Calculator class."""
-    
-    def setup_method(self):
-        """Setup method to create a fresh calculator for each test."""
-        self.calc = Calculator()
-    
-    def test_compute_add(self):
-        """Test compute method with addition."""
-        result = self.calc.compute("add", 2, 3)
-        assert result == 5
-        assert len(self.calc.history) == 1
-        assert "add(2, 3) = 5" in self.calc.history[0]
-    
-    def test_compute_subtract(self):
-        """Test compute method with subtraction."""
-        result = self.calc.compute("subtract", 5, 3)
-        assert result == 2
-        assert "subtract(5, 3) = 2" in self.calc.history[0]
-    
-    def test_compute_multiply(self):
-        """Test compute method with multiplication."""
-        result = self.calc.compute("multiply", 2, 3)
-        assert result == 6
-        assert "multiply(2, 3) = 6" in self.calc.history[0]
-    
-    def test_compute_divide(self):
-        """Test compute method with division."""
-        result = self.calc.compute("divide", 6, 3)
-        assert result == 2
-        assert "divide(6, 3) = 2" in self.calc.history[0]
-        
-        # Test division by zero
+    def test_divide_by_zero_raises(self):
+        """Edge case: division by zero raises ValueError."""
         with pytest.raises(ValueError, match="Cannot divide by zero"):
-            self.calc.compute("divide", 5, 0)
-    
-    def test_compute_sqrt(self):
-        """Test compute method with square root."""
-        result = self.calc.compute("sqrt", 4)
-        assert result == 2
-        assert "sqrt(4, 0) = 2" in self.calc.history[0]
-        
-        # Test negative input
+            divide(5, 0)
+
+
+# ----------------------------------------------------------------
+# Tests for sqrt
+# ----------------------------------------------------------------
+class TestSqrt:
+    """Tests for sqrt() function."""
+
+    @pytest.mark.parametrize(
+        "x, expected",
+        [
+            (4, 2),
+            (0, 0),
+            (2.25, 1.5),
+            (0.25, 0.5),
+        ],
+    )
+    def test_sqrt_positive(self, x, expected):
+        """Test sqrt() with non-negative numbers."""
+        result = sqrt(x)
+        assert result == pytest.approx(expected)
+
+    def test_sqrt_of_one(self):
+        """Edge case: sqrt(1) = 1."""
+        assert sqrt(1) == 1
+
+    def test_sqrt_negative_raises(self):
+        """Edge case: sqrt of negative number raises ValueError."""
         with pytest.raises(ValueError, match="Cannot compute square root of negative number"):
-            self.calc.compute("sqrt", -1)
-    
-    def test_compute_invalid_operation(self):
-        """Test compute method with invalid operation."""
-        with pytest.raises(ValueError, match="Unknown operation"):
-            self.calc.compute("invalid", 1, 2)
-    
-    def test_get_history(self):
-        """Test get_history method."""
-        self.calc.compute("add", 1, 2)
-        self.calc.compute("subtract", 5, 3)
-        
-        history = self.calc.get_history()
+            sqrt(-9)
+
+
+# ----------------------------------------------------------------
+# Tests for Calculator class
+# ----------------------------------------------------------------
+class TestCalculator:
+    """Tests for the Calculator class."""
+
+    @pytest.fixture
+    def calc(self):
+        """Provide a fresh Calculator instance for each test."""
+        return Calculator()
+
+    # ------ compute ------
+    @pytest.mark.parametrize(
+        "operation, a, b, expected_result, expected_history_entry",
+        [
+            ("add", 3, 4, 7, "add(3, 4) = 7"),
+            ("subtract", 10, 3, 7, "subtract(10, 3) = 7"),
+            ("multiply", 2, 5, 10, "multiply(2, 5) = 10"),
+            ("divide", 12, 4, 3, "divide(12, 4) = 3.0"),
+            ("sqrt", 9, 0, 3, "sqrt(9, 0) = 3.0"),  # b ignored, but captured as 0 in history
+        ],
+    )
+    def test_compute_valid_operations(
+        self, calc, operation, a, b, expected_result, expected_history_entry
+    ):
+        """Positive test: compute() returns correct result and records history entry."""
+        result = calc.compute(operation, a, b)
+        assert result == pytest.approx(expected_result)
+        history = calc.get_history()
+        assert len(history) == 1
+        assert history[0] == expected_history_entry
+
+    def test_compute_unknown_operation_raises(self, calc):
+        """Edge case: unknown operation raises ValueError."""
+        with pytest.raises(ValueError, match="Unknown operation: invalid"):
+            calc.compute("invalid", 1, 2)
+
+    def test_compute_divide_by_zero_propagates_and_no_history(self, calc):
+        """
+        Edge case: compute divide by zero raises ValueError and
+        does NOT record history.
+        """
+        with pytest.raises(ValueError, match="Cannot divide by zero"):
+            calc.compute("divide", 5, 0)
+        assert calc.get_history() == []
+
+    def test_compute_sqrt_negative_propagates_and_no_history(self, calc):
+        """
+        Edge case: compute sqrt of negative raises ValueError and
+        does NOT record history.
+        """
+        with pytest.raises(ValueError, match="Cannot compute square root of negative number"):
+            calc.compute("sqrt", -4)
+        assert calc.get_history() == []
+
+    def test_compute_multiple_operations_history(self, calc):
+        """Positive test: performing multiple computations accumulates history."""
+        calc.compute("add", 2, 3)
+        calc.compute("multiply", 4, 5)
+        history = calc.get_history()
         assert len(history) == 2
-        assert "add(1, 2) = 3" in history[0]
-        assert "subtract(5, 3) = 2" in history[1]
-    
-    def test_clear_history(self):
-        """Test clear_history method."""
-        self.calc.compute("add", 1, 2)
-        self.calc.compute("subtract", 5, 3)
-        
-        assert len(self.calc.history) == 2
-        self.calc.clear_history()
-        assert len(self.calc.history) == 0
-        assert len(self.calc.get_history()) == 0
+        assert history == ["add(2, 3) = 5", "multiply(4, 5) = 20"]
 
+    # ------ get_history ------
+    def test_get_history_empty(self, calc):
+        """Edge case: get_history on a fresh calculator returns empty list."""
+        hist = calc.get_history()
+        assert hist == []
 
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+    def test_get_history_returns_copy(self, calc):
+        """Positive test: get_history returns a copy, not the internal list."""
+        calc.compute("add", 1, 1)
+        hist = calc.get_history()
+        hist.append("malicious")
+        assert calc.get_history() == ["add(1, 1) = 2"]
+
+    # ------ clear_history ------
+    def test_clear_history(self, calc):
+        """Positive test: clear_history removes all entries."""
+        calc.compute("add", 1, 2)
+        calc.clear_history()
+        assert calc.get_history() == []
+
+    def test_clear_history_on_empty(self, calc):
+        """Edge case: clear_history on already empty history does nothing."""
+        calc.clear_history()  # no exception
+        assert calc.get_history() == []

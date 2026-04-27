@@ -1,6 +1,11 @@
 """
 CLI entry point using Click + Rich.
 """
+# Load .env into os.environ before any LangChain imports so that
+# LANGCHAIN_TRACING_V2 / LANGCHAIN_API_KEY are picked up for LangSmith tracing.
+from dotenv import load_dotenv
+load_dotenv()
+
 import sys
 from pathlib import Path
 
