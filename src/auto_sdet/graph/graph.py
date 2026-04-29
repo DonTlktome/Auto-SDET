@@ -63,7 +63,6 @@ def run_agent(
     target_path: Path,
     output_path: Path,
     max_retries: int = 3,
-    model_name: str = "deepseek-chat",
     verbose: bool = False,
 ) -> dict:
     """Main entry point: build graph and execute."""

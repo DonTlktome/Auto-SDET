@@ -7,14 +7,13 @@ import difflib
 import logging
 
 from rich.markup import escape
-from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from rich.console import Console
 
 from auto_sdet.models.schemas import AgentState
 from auto_sdet.graph.nodes.generator import extract_python_code
+from auto_sdet.tools.llm_factory import get_llm
 from auto_sdet.prompts.reflector import build_reflector_prompt
-from auto_sdet.config import get_settings
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -29,8 +28,6 @@ def reflector_node(state: AgentState) -> dict:
         f"[bold magenta]🧠 [Reflector][/]  "
         f"Analyzing error (attempt {retry_count + 1}/{max_retries})..."
     )
-
-    settings = get_settings()
 
     # ── Step 1: Collect error context ───────────────────
     execution_result = state.get("execution_result")
@@ -51,13 +48,7 @@ def reflector_node(state: AgentState) -> dict:
     # ── Step 3: Call LLM ────────────────────────────────
     console.print("[bold magenta]🧠 [Reflector][/]  Generating fix via CoT...")
 
-    llm = ChatOpenAI(
-        model=settings.deepseek_model,
-        api_key=settings.deepseek_api_key.get_secret_value(),
-        base_url=settings.deepseek_base_url,
-        temperature=0.0,
-        max_tokens=4096,
-    )
+    llm = get_llm()
 
     messages = [
         SystemMessage(content=system_prompt),

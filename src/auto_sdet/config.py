@@ -1,8 +1,13 @@
 """
 Configuration management using pydantic-settings.
 """
+from typing import Literal, Optional
+
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+LLMProvider = Literal["deepseek", "openai", "anthropic", "ollama"]
 
 
 class Settings(BaseSettings):
@@ -11,21 +16,37 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        case_sensitive=False,       # 环境变量名不区分大小写
-        extra="ignore",             # 忽略 .env 中未定义的字段
+        case_sensitive=False,
+        extra="ignore",
     )
 
-    # ── DeepSeek LLM ────────────────────────────────────────
-    deepseek_api_key: SecretStr                              # 必填，无默认值
+    # ── LLM Provider Selection ──────────────────────────────
+    llm_provider: LLMProvider = "deepseek"
+
+    # ── DeepSeek ────────────────────────────────────────────
+    deepseek_api_key: Optional[SecretStr] = None
     deepseek_base_url: str = "https://api.deepseek.com"
-    deepseek_model: str = "deepseek-chat"
+    deepseek_model: str = "deepseek-v4-fast"
+
+    # ── OpenAI ──────────────────────────────────────────────
+    openai_api_key: Optional[SecretStr] = None
+    openai_base_url: str = "https://api.openai.com/v1"
+    openai_model: str = "gpt-5.5-mini"
+
+    # ── Anthropic / Claude ──────────────────────────────────
+    anthropic_api_key: Optional[SecretStr] = None
+    anthropic_model: str = "claude-sonnet-4-7"
+
+    # ── Ollama (local, no API key required) ─────────────────
+    ollama_base_url: str = "http://localhost:11434/v1"
+    ollama_model: str = "qwen3.5-coder:7b"
 
     # ── E2B Sandbox ─────────────────────────────────────────
-    e2b_api_key: SecretStr                                    # 必填
-    e2b_sandbox_timeout: int = 60                             # 秒
+    e2b_api_key: SecretStr
+    e2b_sandbox_timeout: int = 60
 
     # ── Agent Behavior ──────────────────────────────────────
-    max_retries: int = 3                                      # 最大自愈重试次数
+    max_retries: int = 3
 
 
 def get_settings() -> Settings:

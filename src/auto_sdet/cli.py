@@ -34,21 +34,17 @@ def cli():
     help="Maximum self-healing retry attempts.",
 )
 @click.option(
-    "--model",
-    default="deepseek-chat",
-    show_default=True,
-    help="DeepSeek model name.",
-)
-@click.option(
     "--output-dir",
     default=None,
     type=click.Path(path_type=Path),
     help="Output directory for generated test file. [default: same as target]",
 )
 @click.option("--verbose", is_flag=True, default=False, help="Show detailed node logs.")
-def test(target: Path, max_retries: int, model: str, output_dir: Path | None, verbose: bool):
+def test(target: Path, max_retries: int, output_dir: Path | None, verbose: bool):
     """
     Generate unit tests for TARGET source file.
+
+    Model selection is configured via LLM_PROVIDER / <provider>_MODEL in .env.
 
     Example:
         auto-sdet test src/calculator.py --max-retries 5
@@ -66,11 +62,15 @@ def test(target: Path, max_retries: int, model: str, output_dir: Path | None, ve
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"test_{target.name}"
 
+    # ── Resolve active model label from settings (single source of truth) ──
+    from auto_sdet.tools.llm_factory import get_provider_label
+    provider_label = get_provider_label()
+
     # ── Display banner ──────────────────────────────────
     console.print(Panel.fit(
         f"[bold cyan]Auto-SDET[/]  |  target: [bold]{target.name}[/]\n"
         f"output: {output_path}\n"
-        f"max retries: {max_retries}  |  model: {model}",
+        f"max retries: {max_retries}  |  model: [bold]{provider_label}[/]",
         border_style="cyan",
     ))
 
@@ -82,7 +82,6 @@ def test(target: Path, max_retries: int, model: str, output_dir: Path | None, ve
             target_path=target,
             output_path=output_path,
             max_retries=max_retries,
-            model_name=model,
             verbose=verbose,
         )
 

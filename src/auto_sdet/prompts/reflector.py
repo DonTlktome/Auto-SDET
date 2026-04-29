@@ -25,9 +25,13 @@ Apply the SMALLEST possible change to fix the issue:
 - Do NOT change the testing logic, only fix technical bugs
 - Prefer fixing imports, mock targets, and assertion values
 
-### Step 4 — Output
-Output the COMPLETE fixed test file as a single ```python ... ``` code block.
-Do NOT output partial patches or diffs — output the entire file.
+### Step 4 — Output (STRICT — non-negotiable)
+- Your response MUST start with ```python and end with ```.
+- The code block MUST be the COMPLETE fixed test file (every line, every test).
+- Do NOT output partial patches, diffs, ellipses, or "rest unchanged" comments.
+- Do NOT add narration, summaries, or "Now I will fix..." preambles before the code block.
+- If the file is large, prioritize completeness over verbosity — keep tests concise but include them all.
+- Violating this format truncates the output and breaks the pipeline.
 """
 
 REFLECTOR_USER_PROMPT = """\
