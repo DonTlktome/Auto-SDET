@@ -29,7 +29,6 @@ def build_graph() -> StateGraph:
                           │
                           └──→ END (max retries exceeded)
     """
-    # ── Create graph ────────────────────────────────────
     graph = StateGraph(AgentState)
 
     # ── Register nodes ──────────────────────────────────
@@ -37,25 +36,24 @@ def build_graph() -> StateGraph:
     graph.add_node("executor", executor_node)
     graph.add_node("reflector", reflector_node)
 
-    # ── Set entry point ─────────────────────────────────
+    # ── Entry point ─────────────────────────────────────
     graph.set_entry_point("generator")
 
     # ── Deterministic edges ─────────────────────────────
-    graph.add_edge("generator", "executor")    # 生成后 → 执行
-    graph.add_edge("reflector", "executor")    # 修复后 → 重新执行
+    graph.add_edge("generator", "executor")    # generation → execution
+    graph.add_edge("reflector", "executor")    # patched test → re-execute
 
-    # ── Conditional edges (the decision point) ──────────
+    # ── Executor → success / retry / fail ──────────────
     graph.add_conditional_edges(
         source="executor",
         path=route_after_executor,
         path_map={
-            "end_success": END,        # exit_code == 0
-            "reflect": "reflector",     # exit_code != 0 + retries left
-            "end_failed": END,          # exit_code != 0 + no retries left
+            "end_success": END,
+            "reflect": "reflector",
+            "end_failed": END,
         },
     )
 
-    # ── Compile ─────────────────────────────────────────
     return graph.compile()
 
 
@@ -72,8 +70,8 @@ def run_agent(
     # ── Prepare initial state ───────────────────────────
     initial_state: AgentState = {
         "source_path": str(target_path.resolve()),
-        "source_code": "",           # Will be filled by Generator
-        "context_files": {},         # Will be filled by Generator
+        "source_code": "",            # Generator populates via Tool Use
+        "context_files": {},
         "test_code": "",
         "execution_result": None,
         "retry_count": 0,

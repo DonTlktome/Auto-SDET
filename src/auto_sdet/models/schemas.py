@@ -19,6 +19,21 @@ class FileContent(BaseModel):
     mime_type: str = Field(default="text/plain", description="MIME type")
 
 
+class SymbolSpec(BaseModel):
+    """
+    A top-level public symbol (function or class) extracted from a source file.
+
+    Used by the parallel-generation flow: the Splitter node fans out
+    one Send per SymbolSpec to a Generator worker, which writes tests
+    just for that symbol.
+    """
+    name: str = Field(..., description="Symbol identifier, e.g. 'add' or 'Calculator'")
+    kind: Literal["function", "class"] = Field(..., description="What kind of symbol")
+    source: str = Field(..., description="Full source code of the symbol (preserves comments and formatting)")
+    signature: str = Field(..., description="Signature representation (def/class header + docstring summary, no body)")
+    docstring: Optional[str] = Field(default=None, description="First non-empty line of the docstring, if any")
+
+
 class ExecutionResult(BaseModel):
     """Result returned from E2B sandbox execution."""
     stdout: str = Field(default="", description="Standard output from pytest")

@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
+
 from auto_sdet.graph.router import route_after_executor
 from auto_sdet.models.schemas import AgentState
 
@@ -222,7 +223,7 @@ class TestRouteAfterExecutor:
         
         # Act
         result = route_after_executor(state)
-        
+
         # Assert
         assert result == "end_success"
         mock_console_print.assert_called_once()
