@@ -10,29 +10,40 @@ from rich.console import Console
 
 from auto_sdet.models.schemas import AgentState
 from auto_sdet.graph.nodes.generator import generator_node
+from auto_sdet.graph.nodes.evaluator import evaluator_node
 from auto_sdet.graph.nodes.executor import executor_node
 from auto_sdet.graph.nodes.reflector import reflector_node
-from auto_sdet.graph.router import route_after_executor
+from auto_sdet.graph.router import route_after_executor, route_after_evaluator
 
 console = Console()
 
 
 def build_graph() -> StateGraph:
     """
-    Build and compile the LangGraph FSM.
+    Build and compile the LangGraph FSM with closed-loop quality gating.
 
     Graph topology:
 
-        [Generator] → [Executor] ──→ END (success)
-                          │
-                          ├──→ [Reflector] → [Executor] (retry loop)
-                          │
-                          └──→ END (max retries exceeded)
+        [Generator]
+            ↓
+        [Evaluator] ─score≥0.5→ [Executor] ──pass──→ END (success)
+            │                        │
+            │                        └──fail──→ [Reflector]
+            │                                       │
+            └────score<0.5───────────→──→──→──→──→──┘
+                                                    │
+                                              (back to [Evaluator])
+
+    Termination guarantees:
+      - retry_count ≤ max_retries     (Executor → Reflector loop)
+      - evaluator_reject_count ≤ 2    (Evaluator → Reflector loop)
+      - Both counters strictly increase, so the FSM is bounded.
     """
     graph = StateGraph(AgentState)
 
     # ── Register nodes ──────────────────────────────────
     graph.add_node("generator", generator_node)
+    graph.add_node("evaluator", evaluator_node)
     graph.add_node("executor", executor_node)
     graph.add_node("reflector", reflector_node)
 
@@ -40,8 +51,24 @@ def build_graph() -> StateGraph:
     graph.set_entry_point("generator")
 
     # ── Deterministic edges ─────────────────────────────
-    graph.add_edge("generator", "executor")    # generation → execution
-    graph.add_edge("reflector", "executor")    # patched test → re-execute
+    # All LLM-produced test_code (whether from Generator or Reflector) must
+    # pass through the Evaluator quality gate. This:
+    #   1. Catches Reflector regressions before wasting a sandbox run
+    #   2. Enforces design symmetry — no "trusted" code path
+    #   3. The evaluator_reject_count ≤ 2 + retry_count ≤ max_retries dual
+    #      circuit-breakers guarantee the loop terminates.
+    graph.add_edge("generator", "evaluator")
+    graph.add_edge("reflector", "evaluator")
+
+    # ── Evaluator → Executor (pass) or Reflector (reject) ─
+    graph.add_conditional_edges(
+        source="evaluator",
+        path=route_after_evaluator,
+        path_map={
+            "executor": "executor",
+            "reflector": "reflector",
+        },
+    )
 
     # ── Executor → success / retry / fail ──────────────
     graph.add_conditional_edges(
@@ -73,6 +100,8 @@ def run_agent(
         "source_code": "",            # Generator populates via Tool Use
         "context_files": {},
         "test_code": "",
+        "evaluation_result": None,
+        "evaluator_reject_count": 0,
         "execution_result": None,
         "retry_count": 0,
         "max_retries": max_retries,
