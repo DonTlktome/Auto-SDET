@@ -13,6 +13,7 @@ from auto_sdet.graph.nodes.generator import generator_node
 from auto_sdet.graph.nodes.evaluator import evaluator_node
 from auto_sdet.graph.nodes.executor import executor_node
 from auto_sdet.graph.nodes.reflector import reflector_node
+from auto_sdet.graph.nodes.memory_manager import memory_manager_node
 from auto_sdet.graph.router import route_after_executor, route_after_evaluator
 
 console = Console()
@@ -30,6 +31,8 @@ def build_graph() -> StateGraph:
             │                        │
             │                        └──fail──→ [Reflector]
             │                                       │
+            │                                  [MemoryManager]    ← Memory-R1 CRUD
+            │                                       │
             └────score<0.5───────────→──→──→──→──→──┘
                                                     │
                                               (back to [Evaluator])
@@ -38,6 +41,11 @@ def build_graph() -> StateGraph:
       - retry_count ≤ max_retries     (Executor → Reflector loop)
       - evaluator_reject_count ≤ 2    (Evaluator → Reflector loop)
       - Both counters strictly increase, so the FSM is bounded.
+
+    Memory architecture: Memory-R1 (Lu 2025) style CRUD.
+      Reflector emits a candidate trajectory into state.pending_trajectory,
+      MemoryManager runs the {ADD, UPDATE, DELETE, NOOP} controller, then
+      flow continues to Evaluator. Memory failures never block the agent.
     """
     graph = StateGraph(AgentState)
 
@@ -46,6 +54,7 @@ def build_graph() -> StateGraph:
     graph.add_node("evaluator", evaluator_node)
     graph.add_node("executor", executor_node)
     graph.add_node("reflector", reflector_node)
+    graph.add_node("memory_manager", memory_manager_node)
 
     # ── Entry point ─────────────────────────────────────
     graph.set_entry_point("generator")
@@ -57,8 +66,12 @@ def build_graph() -> StateGraph:
     #   2. Enforces design symmetry — no "trusted" code path
     #   3. The evaluator_reject_count ≤ 2 + retry_count ≤ max_retries dual
     #      circuit-breakers guarantee the loop terminates.
+    # The MemoryManager sits between Reflector and Evaluator: it commits
+    # the Reflector's pending trajectory under Memory-R1 CRUD semantics
+    # (ADD / UPDATE / DELETE / NOOP) before quality gating resumes.
     graph.add_edge("generator", "evaluator")
-    graph.add_edge("reflector", "evaluator")
+    graph.add_edge("reflector", "memory_manager")
+    graph.add_edge("memory_manager", "evaluator")
 
     # ── Evaluator → Executor (pass) or Reflector (reject) ─
     graph.add_conditional_edges(
@@ -102,6 +115,7 @@ def run_agent(
         "test_code": "",
         "evaluation_result": None,
         "evaluator_reject_count": 0,
+        "pending_trajectory": None,   # Reflector → MemoryManager handoff
         "execution_result": None,
         "retry_count": 0,
         "max_retries": max_retries,

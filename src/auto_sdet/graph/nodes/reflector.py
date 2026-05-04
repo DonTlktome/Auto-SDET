@@ -16,8 +16,11 @@ from rich.markup import escape
 from langchain_core.messages import SystemMessage, HumanMessage
 from rich.console import Console
 
+from pathlib import Path
+
 from auto_sdet.models.schemas import AgentState, ReflectionResult
 from auto_sdet.tools.llm_factory import get_llm
+from auto_sdet.tools.memory_store import MemoryStore, build_trajectory
 from auto_sdet.prompts.reflector import build_reflector_prompt
 
 logger = logging.getLogger(__name__)
@@ -39,7 +42,28 @@ def reflector_node(state: AgentState) -> dict:
     latest_error = (execution_result.stdout + execution_result.stderr).strip() if execution_result else "Unknown error"
     error_history = state.get("error_history", [])
 
-    # ── Step 2: Build CoT prompt ────────────────────────
+    # ── Step 2: Reflexion Memory — retrieve similar past cases ──────
+    # Use a quick error signature (without classification yet — we don't
+    # know it until the LLM classifies). The signature here is just the
+    # first ~200 chars of the error, which is usually informative enough
+    # for similarity search.
+    memory = MemoryStore()
+    target_file = Path(state["source_path"]).name
+    query_text = f"{latest_error[:300]} [in {target_file}]"
+    similar_cases = memory.retrieve_similar(query_text, k=3)
+
+    if similar_cases:
+        console.print(
+            f"[dim cyan]🧠 [Reflector][/]  Retrieved {len(similar_cases)} similar past case(s) "
+            f"from episodic memory (total: {memory.count()})"
+        )
+    else:
+        console.print(
+            f"[dim cyan]🧠 [Reflector][/]  No similar past cases in memory "
+            f"(total memory size: {memory.count()})"
+        )
+
+    # ── Step 3: Build CoT prompt with memory context ─────
     system_prompt, user_prompt = build_reflector_prompt(
         source_path=state["source_path"],
         source_code=state["source_code"],
@@ -48,6 +72,7 @@ def reflector_node(state: AgentState) -> dict:
         error_history=error_history,
         retry_count=retry_count + 1,
         max_retries=max_retries,
+        similar_cases=similar_cases,
     )
 
     # ── Step 3: Call LLM with structured output ─────────
@@ -126,9 +151,52 @@ def reflector_node(state: AgentState) -> dict:
 
     console.print("[bold green]✓ [Reflector][/]  Patch applied, re-executing...")
 
-    # ── Step 6: Return updated state ────────────────────
+    # ── Step 6: Build pending trajectory (Memory Manager will commit) ────
+    # We no longer write to memory directly. The Memory Manager (next node)
+    # decides ADD / UPDATE / DELETE / NOOP based on what's already in store.
+    # This is the Memory-R1 (Lu 2025) upgrade over Reflexion's append-only
+    # model — see graph/nodes/memory_manager.py for rationale.
+    pending_trajectory = None
+    try:
+        pending_trajectory = build_trajectory(
+            error_classification=result.error_classification,
+            root_cause=result.root_cause,
+            fix_strategy=result.fix_strategy,
+            fix_summary=_extract_fix_summary(diff),
+            target_file=target_file,
+            outcome="fix_applied",
+        )
+    except Exception as e:
+        # Trajectory build failure is non-fatal — Memory Manager will
+        # see pending_trajectory=None and skip its CRUD logic.
+        logger.warning(f"Failed to build pending trajectory: {e}")
+
+    # ── Step 7: Return updated state ────────────────────
     return {
         "test_code": patched_test_code,
         "retry_count": retry_count + 1,
         "status": "executing",
+        "pending_trajectory": pending_trajectory,
     }
+
+
+def _extract_fix_summary(diff: list[str], max_chars: int = 300) -> str:
+    """
+    Build a compact summary of the diff for storage in memory.
+
+    Stores the first few +/- lines (not the full file) so the memory record
+    stays small and the summary itself is human-readable when retrieved.
+    """
+    if not diff:
+        return "(no changes detected — possible identical patch)"
+
+    interesting = [
+        line.rstrip("\n")
+        for line in diff
+        if (line.startswith("+") and not line.startswith("+++"))
+        or (line.startswith("-") and not line.startswith("---"))
+    ]
+    summary = "; ".join(interesting[:6])   # cap at 6 changed lines
+    if len(summary) > max_chars:
+        summary = summary[:max_chars] + "…"
+    return summary or "(diff content not summarizable)"

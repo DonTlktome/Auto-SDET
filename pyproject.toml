@@ -21,6 +21,11 @@ dependencies = [
     # ── CLI ──
     "click>=8.1.0",
     "rich>=13.0.0",
+    # ── Episodic Memory (Reflexion) ──
+    # chromadb persists trajectories to ./.auto_sdet_memory/.
+    # Its default embedding function pulls in sentence-transformers
+    # (all-MiniLM-L6-v2, ~80MB, downloaded on first use).
+    "chromadb>=0.5.0",
 ]
 
 [project.optional-dependencies]

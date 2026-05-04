@@ -34,6 +34,125 @@ class SymbolSpec(BaseModel):
     docstring: Optional[str] = Field(default=None, description="First non-empty line of the docstring, if any")
 
 
+class MemoryTrajectory(BaseModel):
+    """
+    A single Reflexion-style trajectory: one slice of "what went wrong + how
+    we fixed it" persisted to the episodic memory store.
+
+    These records are what give the Agent the ability to learn ACROSS runs:
+      - Each Reflector invocation appends one trajectory after fixing
+      - The next Reflector run retrieves top-k similar past trajectories
+        (by error_signature embedding similarity) and injects them as
+        few-shot guidance, instead of re-deriving the fix from scratch.
+
+    Embedding key:
+      `error_signature` is the text that gets embedded for similarity search.
+      It concatenates the most discriminative parts: error_classification,
+      a short root_cause description, and the source filename. We deliberately
+      DON'T embed the full stderr — most of it is pytest header noise that
+      dilutes the semantic signal.
+    """
+    trajectory_id: str = Field(..., description="UUID for this trajectory")
+    timestamp: str = Field(..., description="ISO-8601 UTC timestamp")
+    target_file: str = Field(..., description="Source file basename (e.g. 'fibonacci.py')")
+
+    # ── Embedded for retrieval ─────────────────
+    error_signature: str = Field(
+        ...,
+        description=(
+            "Compact text used for similarity search. Format: "
+            "'<classification>: <root_cause_first_sentence> [in <file>]'."
+        ),
+    )
+
+    # ── Diagnostic fields (returned at retrieval time as few-shot context) ──
+    error_classification: str = Field(..., description="ReflectionResult.error_classification value")
+    root_cause: str = Field(..., description="One-sentence root cause from Reflector")
+    fix_strategy: str = Field(..., description="minimal_patch / full_rewrite")
+    fix_summary: str = Field(
+        ...,
+        description=(
+            "Short prose describing the fix (e.g. 'replaced patch(\"x.y\") "
+            "with patch.object(x, \"y\")'). NOT the full diff."
+        ),
+    )
+    outcome: Literal["fix_applied", "fix_failed_max_retries"] = Field(
+        ...,
+        description=(
+            "Whether the overall agent run succeeded after this fix. "
+            "Failed trajectories are still stored — they teach the next run "
+            "'this approach didn't work, try something else'."
+        ),
+    )
+
+    # ── CRUD soft-delete support (Memory-R1 style) ──────────
+    # Soft delete: a DELETE operation only flips this flag.
+    # retrieve_similar() filters out deprecated rows by default.
+    # The data itself is kept so a wrong DELETE can be reversed.
+    deprecated: bool = Field(
+        default=False,
+        description="Soft-delete flag. Excluded from retrieval when True.",
+    )
+    deprecated_reason: Optional[str] = Field(
+        default=None,
+        description="Why the Memory Manager deprecated this trajectory (audit trail).",
+    )
+
+
+class MemoryOperation(BaseModel):
+    """
+    Memory-R1 style CRUD decision emitted by the Memory Manager node.
+
+    Replaces the old Reflexion append-only model: every Reflector trajectory
+    no longer goes straight to ADD. Instead, the Manager LLM looks at the
+    new trajectory + top-k retrieved neighbors and explicitly chooses one of
+    {ADD, UPDATE, DELETE, NOOP}. This prevents:
+      - duplicate trajectories piling up (NOOP catches "we already know this")
+      - stale wrong root_causes lingering forever (UPDATE replaces; DELETE flags)
+      - the retrieval set degrading into noise as memory grows
+
+    Why this matters (vs Reflexion 2023):
+      Reflexion only knows ADD. Memory-R1 (Lu 2025) showed that adding
+      UPDATE/DELETE/NOOP under an LLM-driven controller drives long-term
+      memory utility much higher than monotonic append.
+
+    Safety design (anti-LLM-error):
+      - DELETE is soft (flips `deprecated`, not destructive)
+      - Only confidence='high' DELETEs are honored — others auto-downgrade
+      - Manager only acts on ONE neighbor per call (no batch wipe)
+      - Manager failure → caller defaults to ADD (conservative)
+    """
+    operation: Literal["ADD", "UPDATE", "DELETE", "NOOP"] = Field(
+        ...,
+        description=(
+            "ADD: brand-new useful experience. "
+            "UPDATE: a neighbor's root_cause is wrong/incomplete; replace it. "
+            "DELETE: a neighbor is provably bad guidance; soft-delete it. "
+            "NOOP: the new trajectory adds nothing beyond what neighbors already cover."
+        ),
+    )
+    target_trajectory_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "REQUIRED for UPDATE and DELETE: the existing trajectory_id this "
+            "operation acts on. Must be one of the retrieved neighbors. "
+            "MUST be None for ADD and NOOP."
+        ),
+    )
+    confidence: Literal["low", "medium", "high"] = Field(
+        ...,
+        description=(
+            "How certain the Manager is. Used to gate destructive ops: "
+            "DELETE is only executed when confidence='high'; lower-confidence "
+            "DELETE requests auto-downgrade to NOOP."
+        ),
+    )
+    reasoning: str = Field(
+        ...,
+        description="One-sentence justification — auditable trace of the decision.",
+    )
+
+
 class Weakness(BaseModel):
     """
     A single weakness in a generated test file, surfaced by the Evaluator.
@@ -177,6 +296,11 @@ class AgentState(TypedDict, total=False):
 
     # ── LLM-as-Judge Evaluator output (set by evaluator_node) ──────
     evaluation_result: Optional[EvaluationResult]
+
+    # ── Pending trajectory for the Memory Manager (set by reflector_node) ──
+    # Reflector emits a candidate trajectory; the next node (Memory Manager)
+    # reads this, decides ADD/UPDATE/DELETE/NOOP, then clears it.
+    pending_trajectory: Optional[MemoryTrajectory]
     # How many times the Evaluator has rejected the current test_code.
     # Used as an anti-loop guard: after 2 rejections the router
     # forces the flow to Executor regardless of evaluation score.
