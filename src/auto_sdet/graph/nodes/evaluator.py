@@ -10,9 +10,10 @@ When routing to Reflector, the evaluation feedback is synthesized into a
 pseudo-stderr and pushed onto error_history, so the existing Reflector
 implementation can consume it without code changes.
 
-Tool calling note: with_structured_output uses tool_choice internally,
-which is incompatible with DeepSeek thinking mode. for_tool_use=True
-disables thinking for this call.
+Protocol note: with_structured_output is called with method="json_mode",
+which uses `response_format` instead of `tool_choice`. deepseek-reasoner
+rejects `tool_choice` but accepts `response_format`, so this path keeps
+thinking enabled and we get both structured output AND V4 reasoning.
 """
 from __future__ import annotations
 
@@ -25,6 +26,7 @@ from rich.markup import escape
 from auto_sdet.models.schemas import AgentState, EvaluationResult, ExecutionResult
 from auto_sdet.prompts.evaluator import build_evaluator_prompt
 from auto_sdet.tools.llm_factory import get_llm
+from auto_sdet.tools.ruff_checker import check_code, format_issues_for_prompt
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -41,28 +43,82 @@ def evaluator_node(state: AgentState) -> dict:
         "[bold blue]🧐 [Evaluator][/]  Scoring generated test file..."
     )
 
+    # ── Step 0: Static-analysis sidecar signal (ruff) ─────
+    # Independent of the LLM judge — catches the things same-model self-eval
+    # is known to miss (syntax / unused imports / undefined names). Fatal
+    # findings (parser errors, undefined symbols) short-circuit straight to
+    # Reflector since the code provably can't run — no point asking the LLM
+    # judge or paying for a sandbox cycle.
+    ruff_issues = check_code(state["test_code"])
+    fatal_issues = [i for i in ruff_issues if i.is_fatal]
+
+    if fatal_issues:
+        console.print(
+            f"[bold red]🧐 [Evaluator][/]  "
+            f"ruff caught {len(fatal_issues)} fatal issue(s) — bypassing LLM judge, "
+            f"routing direct to Reflector"
+        )
+        for issue in fatal_issues[:5]:
+            console.print(
+                f"[dim red]  L{issue.line} {issue.code}: {escape(issue.message)}[/]"
+            )
+
+        # Synthesize stderr-like feedback exactly the way the LLM-judge
+        # rejection path does, so Reflector consumes a uniform format.
+        feedback_str = _format_ruff_fatal_as_pseudo_stderr(fatal_issues)
+        pseudo_result = ExecutionResult(
+            stdout="", stderr=feedback_str,
+            exit_code=-101,        # distinct sentinel from -100 (LLM judge reject)
+            sandbox_id="ruff",
+        )
+        error_history = list(state.get("error_history", []))
+        error_history.append(feedback_str)
+        return {
+            "evaluation_result": None,
+            "execution_result": pseudo_result,
+            "error_history": error_history,
+            "evaluator_reject_count": state.get("evaluator_reject_count", 0) + 1,
+            "status": "reflecting",
+        }
+
+    # Non-fatal ruff issues get folded into the LLM-judge prompt as a sidecar
+    # fact set — the LLM weighs them as one input among many.
+    ruff_report = format_issues_for_prompt(ruff_issues)
+
     system_prompt, user_prompt = build_evaluator_prompt(
         source_path=state["source_path"],
         source_code=state["source_code"],
         test_code=state["test_code"],
+        ruff_report=ruff_report,
     )
 
-    # tool_choice path → must disable thinking
-    llm = get_llm(for_tool_use=True)
-    structured_llm = llm.with_structured_output(EvaluationResult)
+    # Single-turn json_mode: deepseek-reasoner supports `response_format`
+    # alongside thinking, unlike the default function_calling method which
+    # uses tool_choice (rejected). Thinking ON helps the judge weigh trade-offs
+    # between the 4 quality dimensions more carefully.
+    llm = get_llm(multi_turn_tool_calling=False)
+    structured_llm = llm.with_structured_output(EvaluationResult, method="json_mode")
 
+    # Same two failure modes as Reflector: invoke raises, or invoke returns None.
+    # Both mean "no usable score" — fall through to Executor since the real
+    # pytest run is the source of truth anyway, no point blocking on a soft check.
+    result: EvaluationResult | None = None
+    failure_reason: str | None = None
     try:
-        result: EvaluationResult = structured_llm.invoke([
+        result = structured_llm.invoke([
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_prompt),
         ])
     except Exception as e:
-        # Evaluator failure: fall through to Executor rather than block the
-        # whole pipeline. The real test run is the source of truth anyway.
-        logger.error(f"Evaluator structured output failed: {e}")
+        failure_reason = f"invoke raised: {e}"
+    if result is None and failure_reason is None:
+        failure_reason = "invoke returned None"
+
+    if result is None:
+        logger.error(f"Evaluator structured output unavailable: {failure_reason}")
         console.print(
             f"[bold yellow]⚠ [Evaluator][/]  Failed to score "
-            f"({escape(str(e))[:80]}…) — falling through to Executor"
+            f"({escape(failure_reason or 'unknown')[:80]}…) — falling through to Executor"
         )
         return {
             "evaluation_result": None,
@@ -183,4 +239,22 @@ def _format_evaluation_as_pseudo_stderr(result: EvaluationResult) -> str:
         lines.append("")
 
     lines.append("==================== END EVALUATOR REJECTION ====================")
+    return "\n".join(lines)
+
+
+def _format_ruff_fatal_as_pseudo_stderr(fatal_issues) -> str:
+    """
+    Render ruff fatal findings as a stderr-like block (same shape as the
+    LLM-judge rejection) so Reflector consumes a uniform error format.
+    """
+    lines = [
+        "==================== STATIC ANALYSIS (ruff) — FATAL ====================",
+        "The generated test code cannot run — ruff detected blocking issues.",
+        "",
+    ]
+    for issue in fatal_issues:
+        lines.append(f"  L{issue.line} {issue.code}: {issue.message}")
+    lines.append("")
+    lines.append("Fix these before the code can even be parsed/imported by pytest.")
+    lines.append("==================== END STATIC ANALYSIS ====================")
     return "\n".join(lines)

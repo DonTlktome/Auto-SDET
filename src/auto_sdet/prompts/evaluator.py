@@ -74,8 +74,33 @@ For every issue found, emit a `Weakness` with:
 - `manual_review` (rare): for cases too ambiguous for automated decision
 
 ## Output Format
-Emit a single `EvaluationResult` matching the schema. The runtime will
-validate it via Pydantic — non-conforming output is rejected.
+
+Respond with a SINGLE JSON object (no markdown fence, no prose around it)
+matching this schema:
+
+```
+{
+  "testable_coverage_score": <float 0.0-1.0>,
+  "assertion_quality":       <float 0.0-1.0>,
+  "mock_correctness":        <float 0.0-1.0>,
+  "code_consistency":        <float 0.0-1.0>,
+  "overall_score":           <float 0.0-1.0>,
+  "skipped_intentionally":   <array of strings, each "<region> — <why>">,
+  "strengths":               <array of up to 3 strings>,
+  "weaknesses": [
+    {
+      "issue":         <short description>,
+      "severity":      <"minor" | "moderate" | "blocking">,
+      "actionable":    <bool>,
+      "suggested_fix": <string or null>
+    }
+  ],
+  "recommended_action": <"pass_to_executor" | "regenerate" | "manual_review">
+}
+```
+
+The runtime parses this JSON and validates against a Pydantic schema —
+unknown enum values are rejected.
 """
 
 EVALUATOR_USER_PROMPT = """\
@@ -89,11 +114,21 @@ Review this generated pytest test file for quality.
 {test_code}
 </generated_test_code>
 
-Score along the 4 dimensions, list strengths / weaknesses / intentionally
-skipped regions, and emit a structured `EvaluationResult`.
+<static_analysis source="ruff">
+{ruff_report}
+</static_analysis>
 
-Remember: coverage of untestable code (CLI entrypoints, input() loops, etc.)
-should NOT lower `testable_coverage_score`. List those in `skipped_intentionally`.
+Score along the 4 dimensions, list strengths / weaknesses / intentionally
+skipped regions, and emit the JSON object described in your system instructions.
+
+Reminders:
+- Coverage of untestable code (CLI entrypoints, input() loops, etc.) should
+  NOT lower `testable_coverage_score`. List those in `skipped_intentionally`.
+- The `<static_analysis>` block above is a DETERMINISTIC second signal from
+  ruff (a Python linter). Non-fatal ruff findings (unused imports, style)
+  should be reflected in `code_consistency` and `weaknesses` if present.
+  Fatal ruff issues (syntax / undefined names) would have already been
+  intercepted before reaching you — if you see any, the runtime has a bug.
 """
 
 
@@ -101,11 +136,13 @@ def build_evaluator_prompt(
     source_path: str,
     source_code: str,
     test_code: str,
+    ruff_report: str = "(ruff signal unavailable for this invocation)",
 ) -> tuple[str, str]:
     """Build (system_prompt, user_prompt) for the Evaluator node."""
     user_prompt = EVALUATOR_USER_PROMPT.format(
         source_path=source_path,
         source_code=source_code,
         test_code=test_code,
+        ruff_report=ruff_report,
     )
     return EVALUATOR_SYSTEM_PROMPT, user_prompt
