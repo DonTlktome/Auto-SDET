@@ -1,8 +1,37 @@
 # Auto-SDET
 
-> Autonomous Unit Test Generation Agent powered by LangGraph FSM + LLM-as-Judge + Memory-R1 episodic memory + E2B Sandbox
+> **Autonomous Unit Test Generation Agent** powered by LangGraph FSM · LLM-as-Judge · Memory-R1 · E2B Sandbox
 >
-> 基于 LangGraph 状态机 + LLM-as-Judge 质量门禁 + Memory-R1 情景记忆 + E2B 沙箱的自主单元测试生成 Agent
+> **自主单元测试生成 Agent** · LangGraph 状态机 · LLM-as-Judge 质量门禁 · Memory-R1 情景记忆 · E2B 沙箱
+
+![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
+![LangGraph](https://img.shields.io/badge/LangGraph-5--node%20FSM-FF6F00)
+![Memory-R1](https://img.shields.io/badge/Memory--R1-CRUD-7B1FA2)
+![Tests](https://img.shields.io/badge/tests-182%20passing-43A047)
+![Final Pass Rate](https://img.shields.io/badge/final%20pass%20rate-100%25-43A047)
+![Coverage](https://img.shields.io/badge/avg%20coverage-72.9%25-43A047)
+
+---
+
+## TL;DR
+
+**Give it a Python source file → it generates pytest code and self-heals until the tests pass.** 19 modules in the open-source benchmark suite, **100% final pass rate** (vs baseline 94.7%), 72.9% average coverage.
+
+**给一个 Python 源文件，生成 pytest 测试代码 + 自愈直到通过。** 19 模块开源基准实测最终通过率 **100%**（超 baseline 94.7%）、平均覆盖率 72.9%。
+
+| What's interesting | 中文 |
+|---|---|
+| 🧠 **5-node LangGraph FSM** (Generator → Evaluator → Executor → Reflector → MemoryManager) with dual circuit breakers for bounded termination | 五节点闭环状态机 + 双重熔断保证有界终止 |
+| 🛡️ **Dual-source quality gate** — LLM-as-Judge (semantic) + ruff static analysis (deterministic), compensating for the same-model self-evaluation blind spot | 双源 quality gate — LLM 评模糊语义 + ruff 评客观静态，补完大模型同源自审盲区 |
+| 💾 **Memory-R1 (Lu 2025) episodic memory** — LLM-driven CRUD operations (ADD/UPDATE/DELETE/NOOP) over ChromaDB, with multi-layer safety guards preventing LLM mis-deletion | Memory-R1 跨任务情景记忆 — LLM 控制器做 CRUD 操作 + 多层防误删护栏 |
+| 🔒 **E2B Micro-VM sandbox** with AST-based dependency resolution — generated code runs in a fresh isolated VM, ~300ms startup | E2B 微型虚拟机沙箱 + AST 自动依赖解析 |
+| 🔬 **7 benchmark rounds + 4 engineering case studies** documenting the full architecture evolution (json_mode protocol attribution / LLM-as-Judge limits / Memory-R1 upgrade / ROI-driven optimization) | 7 轮 benchmark + 4 个独立工程 case study 完整归档架构演进 |
+
+📖 **Engineering deep-dive:** [`RESUME_IMPROVEMENT.md`](RESUME_IMPROVEMENT.md) · **Code walkthrough:** [`CODE_WALKTHROUGH.md`](CODE_WALKTHROUGH.md)
+
+---
+
+## Demo / 运行示例
 
 ```
 auto-sdet test src/calculator.py
