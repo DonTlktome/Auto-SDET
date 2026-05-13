@@ -32,14 +32,24 @@ Choose between:
 - `full_rewrite` — multiple structural problems require regenerating substantial portions.
 
 ### Step 4 — Output Constraints
-The output MUST be a structured object with these fields (the runtime will
-validate it against a Pydantic schema, so respect the types):
 
-  - error_classification : one of the categories from Step 1
-  - root_cause           : ONE sentence describing why the test failed
-  - affected_lines       : the test-file line numbers that change
-  - fix_strategy         : `minimal_patch` or `full_rewrite`
-  - fixed_code           : the COMPLETE fixed test file as a single string
+Respond with a SINGLE JSON object (no markdown fence, no prose before/after)
+matching this schema exactly:
+
+```
+{
+  "error_classification": <one of: "ImportError" | "AssertionError" |
+                          "TypeError" | "AttributeError" | "SyntaxError" |
+                          "FixtureError" | "MockError" | "Other">,
+  "root_cause":           <ONE sentence describing why the test failed>,
+  "affected_lines":       <array of test-file line numbers, e.g. [12, 14]>,
+  "fix_strategy":         <"minimal_patch" | "full_rewrite">,
+  "fixed_code":           <the COMPLETE fixed test file as a JSON string>
+}
+```
+
+The runtime parses this JSON and validates it against a Pydantic schema —
+unknown values for `error_classification` or `fix_strategy` will be rejected.
 
 Rules for `fixed_code`:
 - Must be valid, runnable Python
@@ -47,6 +57,7 @@ Rules for `fixed_code`:
 - Must preserve every test from the original UNLESS deletion is itself the fix
 - Must NOT contain markdown fences, ellipses, or "..." placeholders
 - Do NOT remove test cases just to make failures go away
+- Escape newlines as \\n when serializing the file into the JSON string
 """
 
 REFLECTOR_USER_PROMPT = """\
@@ -74,12 +85,22 @@ The test code below is failing. Fix it based on the error output.
 
 Current retry: {retry_count} / {max_retries}
 
-Follow the Chain-of-Thought steps in your system instructions, then emit the structured `ReflectionResult` with all five fields populated.
+Follow the Chain-of-Thought steps in your system instructions, then emit the JSON object with all five fields populated.
 
 Note on `<similar_past_cases>`: these are retrieved from episodic memory based
 on semantic similarity to the current error. They are HINTS — apply them only
 if they actually fit the current case. If they don't, ignore them.
 """
+
+
+# Sliding-window cap on how many prior errors get injected into the prompt.
+# Rationale: pytest stderr is ~2-4K tokens per attempt, mostly header noise.
+# After 3 retries the history section can balloon to 10K+ tokens, and the
+# Reflector mostly needs the LATEST error — older ones are only there to
+# detect A→B→A oscillation, for which 2 entries is plenty. State still holds
+# the full history (preserves LangSmith trace fidelity); we slice only when
+# rendering the prompt.
+ERROR_HISTORY_PROMPT_WINDOW = 2
 
 
 def build_reflector_prompt(
@@ -93,11 +114,22 @@ def build_reflector_prompt(
     similar_cases: Optional[list[MemoryTrajectory]] = None,
 ) -> tuple[str, str]:
     """Build (system_prompt, user_prompt) for the Reflector Node."""
-    if error_history:
+    recent_errors = error_history[-ERROR_HISTORY_PROMPT_WINDOW:] if error_history else []
+    if recent_errors:
         history_entries = []
-        for i, err in enumerate(error_history, 1):
-            history_entries.append(f"--- Attempt {i} ---\n{err}")
-        error_history_section = "\n\n".join(history_entries)
+        # Use absolute attempt numbers (counting from the start of the run)
+        # so the LLM can see retry depth even when older entries are clipped.
+        start_idx = max(0, len(error_history) - len(recent_errors))
+        for offset, err in enumerate(recent_errors):
+            attempt_num = start_idx + offset + 1
+            history_entries.append(f"--- Attempt {attempt_num} ---\n{err}")
+        clipped_note = (
+            f"\n\n[Note: showing last {len(recent_errors)} of {len(error_history)} attempts; "
+            f"earlier ones omitted to keep prompt focused]"
+            if len(error_history) > len(recent_errors)
+            else ""
+        )
+        error_history_section = "\n\n".join(history_entries) + clipped_note
     else:
         error_history_section = "(First attempt — no previous errors)"
 

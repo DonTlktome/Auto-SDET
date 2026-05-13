@@ -19,18 +19,23 @@ DEFAULT_TEMPERATURE = 0.0
 DEFAULT_MAX_TOKENS = 16384
 
 
-def get_llm(for_tool_use: bool = False) -> BaseChatModel:
+def get_llm(multi_turn_tool_calling: bool = False) -> BaseChatModel:
     """
     Build a chat model instance for the configured LLM provider.
 
     Args:
-        for_tool_use: If True, configure the model for safe multi-turn
-            tool-calling. For DeepSeek V4 thinking models this means
-            disabling thinking, since `reasoning_content` must be
-            round-tripped in tool calls (DeepSeek docs) and current
-            LangChain clients don't preserve that field across turns.
-            For single-turn callers (e.g. Reflector), set False to keep
-            thinking enabled and benefit from deeper reasoning.
+        multi_turn_tool_calling: True only for callers that do an iterative
+            `bind_tools` loop (Generator's read_file/list_directory dispatch).
+            DeepSeek V4 thinking + multi-turn tool calling requires
+            reasoning_content to be round-tripped between turns; LangChain's
+            ChatDeepSeek does not preserve that field, so we disable thinking
+            for these callers to avoid the resulting 400 errors.
+
+            Set to False for:
+              - single-turn `with_structured_output(method="json_mode")` callers
+                (Reflector, Evaluator, MemoryManager) — these use `response_format`
+                rather than `tool_choice`, which deepseek-reasoner supports fine
+              - any plain `invoke()` caller with no tool calling
 
     Raises:
         ValueError: required API key for the selected provider is missing.
@@ -50,11 +55,12 @@ def get_llm(for_tool_use: bool = False) -> BaseChatModel:
                 "langchain-deepseek is required for the DeepSeek provider. "
                 "Install it with: pip install langchain-deepseek"
             ) from e
-        # Per DeepSeek docs: when tool calling is involved, reasoning_content
-        # must be round-tripped or the API returns 400. LangChain clients
-        # don't preserve that field, so we disable thinking for tool-use callers.
-        # For single-turn callers, keep thinking enabled to benefit from V4 reasoning.
-        thinking_mode = "disabled" if for_tool_use else "enabled"
+        # DeepSeek V4 thinking + multi-turn tool calling is incompatible
+        # under current LangChain — it doesn't round-trip reasoning_content
+        # across turns and the API returns 400 on the second turn. Single-turn
+        # structured-output callers don't hit this because they only need one
+        # round-trip; they should keep thinking enabled.
+        thinking_mode = "disabled" if multi_turn_tool_calling else "enabled"
         return ChatDeepSeek(
             model=settings.deepseek_model,
             api_key=settings.deepseek_api_key.get_secret_value(),

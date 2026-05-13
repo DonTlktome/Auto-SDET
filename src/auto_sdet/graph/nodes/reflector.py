@@ -76,33 +76,42 @@ def reflector_node(state: AgentState) -> dict:
     )
 
     # ── Step 3: Call LLM with structured output ─────────
-    # `with_structured_output` binds a single internal tool whose schema is
-    # ReflectionResult, then forces the LLM to call it via `tool_choice`.
-    # DeepSeek thinking-mode models (deepseek-reasoner / v4 with thinking on)
-    # do NOT support tool_choice → 400 error. So we must disable thinking
-    # here for the same reason the Generator's Tool Use loop does.
-    # The 4-step CoT is now driven explicitly by the prompt (Step 1 → 4),
-    # not by the model's internal reasoning_content.
-    console.print("[bold magenta]🧠 [Reflector][/]  Generating fix via CoT (structured)...")
+    # `with_structured_output(method="json_mode")` uses `response_format` rather
+    # than `tool_choice`, which is what deepseek-reasoner accepts alongside
+    # thinking. (The default function_calling method uses tool_choice and
+    # 400s on deepseek-reasoner — verified empirically; see DeepSeek docs at
+    # https://api-docs.deepseek.com/zh-cn/guides/thinking_mode.)
+    # Thinking ON gives Reflector real reasoning depth for "diagnose + patch"
+    # tasks; that recovers the one-shot pass rate lost in earlier benchmark
+    # runs that ran this node with thinking disabled.
+    console.print("[bold magenta]🧠 [Reflector][/]  Generating fix via CoT (structured + thinking)...")
 
-    llm = get_llm(for_tool_use=True)   # tool_choice path requires thinking off
-    structured_llm = llm.with_structured_output(ReflectionResult)
+    llm = get_llm(multi_turn_tool_calling=False)   # single-turn → keep thinking ON
+    structured_llm = llm.with_structured_output(ReflectionResult, method="json_mode")
 
     messages = [
         SystemMessage(content=system_prompt),
         HumanMessage(content=user_prompt),
     ]
 
+    # Structured output can fail in two ways that we treat the same:
+    #   1. invoke() raises (provider rejects tool_choice, transport error, etc.)
+    #   2. invoke() returns None (LLM produced empty content / no tool call)
+    # Both mean "no usable fix this turn" — saturate retry_count so the next
+    # router pass reaches end_failed instead of looping on the broken contract.
+    result: ReflectionResult | None = None
+    failure_reason: str | None = None
     try:
-        result: ReflectionResult = structured_llm.invoke(messages)
+        result = structured_llm.invoke(messages)
     except Exception as e:
-        # If structured output fails (provider rejects tool_choice, returns
-        # malformed JSON, etc.), there's no point looping — same input would
-        # fail the same way. Saturate retry_count to terminate immediately
-        # via the existing route_after_executor path.
-        logger.error(f"Structured output parse failed: {e}")
+        failure_reason = f"invoke raised: {e}"
+    if result is None and failure_reason is None:
+        failure_reason = "invoke returned None (LLM produced no structured output)"
+
+    if result is None:
+        logger.error(f"Structured output unavailable: {failure_reason}")
         console.print(
-            f"[bold red]✗ [Reflector][/]  Structured output failed: {escape(str(e))}"
+            f"[bold red]✗ [Reflector][/]  Structured output unavailable: {escape(failure_reason or 'unknown')}"
         )
         console.print(
             "[bold red]✗ [Reflector][/]  Aborting self-healing loop "

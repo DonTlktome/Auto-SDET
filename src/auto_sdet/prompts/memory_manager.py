@@ -74,9 +74,21 @@ as a safety guard.
 | NOOP      | MUST be None        | any                    |
 
 ## Output Format
-Emit a single `MemoryOperation` matching the schema. The runtime validates
-via Pydantic — non-conforming output is rejected (with caller falling back
-to defaulting to ADD).
+
+Respond with a SINGLE JSON object (no markdown fence, no prose around it)
+matching this schema:
+
+```
+{
+  "operation":             <"ADD" | "UPDATE" | "DELETE" | "NOOP">,
+  "target_trajectory_id":  <neighbor's id string for UPDATE/DELETE, else null>,
+  "confidence":            <"low" | "medium" | "high">,
+  "reasoning":             <one-sentence justification>
+}
+```
+
+The runtime parses this JSON and validates against a Pydantic schema —
+unknown enum values are rejected. If parsing fails the caller defaults to ADD.
 """
 
 MEMORY_MANAGER_USER_PROMPT = """\
@@ -96,8 +108,8 @@ outcome:       {new_outcome}
 {neighbors_section}
 </retrieved_neighbors>
 
-Emit a `MemoryOperation` with operation, target_trajectory_id (when
-applicable), confidence, and a one-sentence reasoning.
+Emit the JSON object described in your system instructions — operation,
+target_trajectory_id (when applicable), confidence, and reasoning.
 """
 
 

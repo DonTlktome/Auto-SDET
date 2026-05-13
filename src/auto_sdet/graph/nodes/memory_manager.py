@@ -22,6 +22,7 @@ Safety guards (defense against LLM error):
 from __future__ import annotations
 
 import logging
+import threading
 
 from langchain_core.messages import SystemMessage, HumanMessage
 from rich.console import Console
@@ -48,55 +49,98 @@ def memory_manager_node(state: AgentState) -> dict:
     Reads from state:
       - pending_trajectory: the MemoryTrajectory the Reflector just emitted
 
-    Returns no state changes (writes only to the persistent memory store).
-    Always passes through to the next node — memory ops never block the agent.
+    Returns immediately. The actual CRUD decision (which calls an LLM and
+    can take 30-50s with thinking on) runs in a background thread — memory
+    ops were always async-semantic by design, this is now async in practice.
+    The next benchmark file picks up new trajectories via ChromaDB persistence.
     """
     pending: MemoryTrajectory | None = state.get("pending_trajectory")
     if pending is None:
         # Nothing to manage (Reflector wasn't run, or it failed before emitting)
         return {}
 
-    memory = MemoryStore()
-
-    # ── Step 1: Retrieve neighbors (include deprecated, so Manager can see
-    # what's been wrong before and avoid suggesting we re-DELETE them) ──
-    neighbors = memory.retrieve_similar(
-        pending.error_signature,
-        k=NEIGHBOR_K,
-        include_deprecated=True,
-    )
-
     console.print(
         f"[bold blue]🗂  [MemoryManager][/]  "
-        f"Deciding CRUD for new trajectory ({len(neighbors)} neighbor(s) retrieved)..."
+        f"Spawned background CRUD decision for trajectory "
+        f"({pending.error_classification})"
     )
 
-    # ── Step 2: Ask the LLM to decide the operation ──
-    system_prompt, user_prompt = build_memory_manager_prompt(pending, neighbors)
-    llm = get_llm(for_tool_use=True)   # tool_choice path: thinking off
-    structured_llm = llm.with_structured_output(MemoryOperation)
-
-    try:
-        op: MemoryOperation = structured_llm.invoke([
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_prompt),
-        ])
-    except Exception as e:
-        # Manager failure: default to ADD (conservative — keep the data).
-        # Memory writes never block the agent, so we proceed regardless.
-        logger.warning(f"MemoryManager structured output failed: {e}")
-        console.print(
-            f"[bold yellow]⚠ [MemoryManager][/]  "
-            f"Decision LLM failed ({escape(str(e))[:60]}…) — defaulting to ADD"
-        )
-        memory.add_trajectory(pending)
-        return {"pending_trajectory": None}
-
-    # ── Step 3: Validate + apply the operation ──
-    op = _enforce_safety_guards(op, neighbors)
-    _apply_operation(op, pending, neighbors, memory)
+    # Fire-and-forget. Daemon thread so it doesn't block process exit.
+    # ChromaDB handles concurrent writes via SQLite locking under the hood.
+    threading.Thread(
+        target=_background_process,
+        args=(pending,),
+        daemon=True,
+        name=f"MemoryManager-{pending.trajectory_id[:8]}",
+    ).start()
 
     return {"pending_trajectory": None}
+
+
+def _background_process(pending: MemoryTrajectory) -> None:
+    """
+    Run the LLM-driven CRUD decision + apply the operation. Executes off the
+    main thread — any exception is logged but never propagates to the agent.
+    """
+    try:
+        memory = MemoryStore()
+
+        # ── Step 1: Retrieve neighbors (include deprecated, so Manager can see
+        # what's been wrong before and avoid suggesting we re-DELETE them) ──
+        neighbors = memory.retrieve_similar(
+            pending.error_signature,
+            k=NEIGHBOR_K,
+            include_deprecated=True,
+        )
+
+        # ── Short-circuit: 0 neighbors → only ADD makes sense ──
+        # No neighbors means UPDATE/DELETE are structurally impossible (no
+        # target) and NOOP would silently drop a novel experience. ADD is the
+        # only sound choice, so save the ~30-50s + 1-2K tokens of asking the
+        # LLM to "decide" between a single option.
+        if not neighbors:
+            memory.add_trajectory(pending)
+            console.print(
+                f"[dim cyan]🗂  [MemoryManager bg][/]  "
+                f"No neighbors → direct ADD (cold-path short-circuit)"
+            )
+            return
+
+        # ── Step 2: Ask the LLM to decide the operation ──
+        # Same json_mode path as Reflector/Evaluator: response_format works
+        # with deepseek-reasoner thinking; tool_choice does not.
+        system_prompt, user_prompt = build_memory_manager_prompt(pending, neighbors)
+        llm = get_llm(multi_turn_tool_calling=False)
+        structured_llm = llm.with_structured_output(MemoryOperation, method="json_mode")
+
+        op: MemoryOperation | None = None
+        failure_reason: str | None = None
+        try:
+            op = structured_llm.invoke([
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_prompt),
+            ])
+        except Exception as e:
+            failure_reason = f"invoke raised: {e}"
+        if op is None and failure_reason is None:
+            failure_reason = "invoke returned None"
+
+        if op is None:
+            logger.warning(f"MemoryManager structured output unavailable: {failure_reason}")
+            console.print(
+                f"[dim yellow]🗂  [MemoryManager bg][/]  "
+                f"Decision LLM failed ({escape(failure_reason or 'unknown')[:60]}…) — defaulting to ADD"
+            )
+            memory.add_trajectory(pending)
+            return
+
+        # ── Step 3: Validate + apply the operation ──
+        op = _enforce_safety_guards(op, neighbors)
+        _apply_operation(op, pending, neighbors, memory)
+    except Exception as e:
+        # Catch-all: a background thread crashing on its own is fine, but we
+        # log it so debugging is still possible.
+        logger.exception(f"MemoryManager background thread failed: {e}")
 
 
 # ──────────────────────────────────────────────────────────────────

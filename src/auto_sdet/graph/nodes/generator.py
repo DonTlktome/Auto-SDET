@@ -75,9 +75,12 @@ def generator_node(state: AgentState) -> dict:
     console.print(f"[bold cyan]✨ [Generator][/]  Calling LLM ({get_provider_label()}) with tools...")
 
     # ── Bind tools to the LLM ─────────────────────────────
-    # for_tool_use=True disables DeepSeek V4 thinking to avoid the
-    # reasoning_content round-trip 400 error in multi-turn tool calls.
-    llm = get_llm(for_tool_use=True)
+    # Generator drives a multi-turn bind_tools loop. DeepSeek V4 thinking would
+    # need reasoning_content round-tripped between turns; LangChain ChatDeepSeek
+    # doesn't preserve that field, so we disable thinking for this path.
+    # (Reflector/Evaluator/MemoryManager are single-turn json_mode and keep
+    # thinking enabled — see llm_factory.get_llm() docstring.)
+    llm = get_llm(multi_turn_tool_calling=True)
     llm_with_tools = llm.bind_tools(GENERATOR_TOOLS)
 
     messages = [

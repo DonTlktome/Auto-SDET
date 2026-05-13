@@ -125,8 +125,12 @@ class TestBuildReflectorPrompt:
         assert "SyntaxError: bad input" in user
         assert "(First attempt" not in user
 
-    def test_error_history_multiple_entries(self):
-        """Multiple errors should each get their own attempt header."""
+    def test_error_history_sliding_window_keeps_recent_two(self):
+        """
+        Prompt should only inject the last 2 errors (sliding-window cap)
+        but keep absolute attempt numbering so the LLM still sees depth.
+        Older entries are dropped with an explanatory note.
+        """
         history = [
             "ImportError: X",
             "TypeError: Y",
@@ -141,12 +145,35 @@ class TestBuildReflectorPrompt:
             retry_count=3,
             max_retries=5,
         )
-        assert "--- Attempt 1 ---" in user
+        # Latest two attempts (#2 and #3) are kept, with absolute numbering.
         assert "--- Attempt 2 ---" in user
         assert "--- Attempt 3 ---" in user
-        assert "ImportError: X" in user
         assert "TypeError: Y" in user
         assert "AssertionError: Z" in user
+        # The oldest entry is dropped from the prompt.
+        assert "ImportError: X" not in user
+        assert "--- Attempt 1 ---" not in user
+        # The clipping is disclosed so the LLM knows history existed.
+        assert "showing last 2 of 3 attempts" in user
+
+    def test_error_history_two_entries_keeps_both(self):
+        """When history length ≤ window size, no clipping note is added."""
+        history = ["ImportError: X", "TypeError: Y"]
+        _, user = build_reflector_prompt(
+            source_path="p.py",
+            source_code="s",
+            test_code="t",
+            latest_error="final",
+            error_history=history,
+            retry_count=2,
+            max_retries=5,
+        )
+        assert "--- Attempt 1 ---" in user
+        assert "--- Attempt 2 ---" in user
+        assert "ImportError: X" in user
+        assert "TypeError: Y" in user
+        # No clipping disclosure when nothing was clipped.
+        assert "earlier ones omitted" not in user
 
     # ------------------------------------------------------------------
     # Edge cases
@@ -194,7 +221,10 @@ class TestBuildReflectorPrompt:
         assert "Current retry: 5 / 5" in user
 
     def test_large_error_history(self):
-        """A large error history should not break formatting."""
+        """
+        A large error history should not break formatting. Sliding window keeps
+        only the most recent attempts; older ones are dropped with a disclosure.
+        """
         history = [f"Error number {i}" for i in range(100)]
         _, user = build_reflector_prompt(
             source_path="p.py",
@@ -205,10 +235,16 @@ class TestBuildReflectorPrompt:
             retry_count=99,
             max_retries=100,
         )
-        assert "--- Attempt 1 ---" in user
+        # Latest two attempts (#99 and #100) are kept with absolute numbering.
+        assert "--- Attempt 99 ---" in user
         assert "--- Attempt 100 ---" in user
-        assert "Error number 0" in user
-        assert "Error number 99" in user
+        assert "Error number 98" in user   # second-to-last entry (attempt 99)
+        assert "Error number 99" in user   # last entry (attempt 100)
+        # Earlier ones are dropped.
+        assert "--- Attempt 1 ---" not in user
+        assert "Error number 0" not in user
+        # Clipping is disclosed.
+        assert "showing last 2 of 100 attempts" in user
 
     # ------------------------------------------------------------------
     # Template integrity

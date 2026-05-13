@@ -21,7 +21,7 @@ console = Console()
 
 def build_graph() -> StateGraph:
     """
-    Build and compile the LangGraph FSM with closed-loop quality gating.
+    Build and compile the LangGraph FSM with asymmetric quality gating.
 
     Graph topology:
 
@@ -33,19 +33,31 @@ def build_graph() -> StateGraph:
             │                                       │
             │                                  [MemoryManager]    ← Memory-R1 CRUD
             │                                       │
-            └────score<0.5───────────→──→──→──→──→──┘
-                                                    │
-                                              (back to [Evaluator])
+            └─score<0.5──→ [Reflector]       (direct to Executor — retry path
+                                              skips Evaluator since pytest will
+                                              decide truth anyway)
+                                                    ↓
+                                                [Executor]
 
     Termination guarantees:
       - retry_count ≤ max_retries     (Executor → Reflector loop)
-      - evaluator_reject_count ≤ 2    (Evaluator → Reflector loop)
+      - evaluator_reject_count ≤ 2    (kept for first-gen anti-loop safety)
       - Both counters strictly increase, so the FSM is bounded.
+
+    Asymmetric quality gating (since 2026-05-06):
+      First-gen output goes through Evaluator (catches obviously bad output
+      before paying the sandbox cost). Retry path skips Evaluator and goes
+      straight to Executor, because:
+        1. pytest is ground truth — an LLM judge can't beat real execution
+        2. Evaluator reject rate on retry path was empirically < 5% but
+           every retry paid ~80s for it (ROI calculation)
+        3. Reflector's fix is already conditioned on real stderr; the soft
+           quality check adds noise more than signal
 
     Memory architecture: Memory-R1 (Lu 2025) style CRUD.
       Reflector emits a candidate trajectory into state.pending_trajectory,
-      MemoryManager runs the {ADD, UPDATE, DELETE, NOOP} controller, then
-      flow continues to Evaluator. Memory failures never block the agent.
+      MemoryManager runs the {ADD, UPDATE, DELETE, NOOP} controller in a
+      background thread (fire-and-forget) — memory ops never block the agent.
     """
     graph = StateGraph(AgentState)
 
@@ -60,18 +72,13 @@ def build_graph() -> StateGraph:
     graph.set_entry_point("generator")
 
     # ── Deterministic edges ─────────────────────────────
-    # All LLM-produced test_code (whether from Generator or Reflector) must
-    # pass through the Evaluator quality gate. This:
-    #   1. Catches Reflector regressions before wasting a sandbox run
-    #   2. Enforces design symmetry — no "trusted" code path
-    #   3. The evaluator_reject_count ≤ 2 + retry_count ≤ max_retries dual
-    #      circuit-breakers guarantee the loop terminates.
-    # The MemoryManager sits between Reflector and Evaluator: it commits
-    # the Reflector's pending trajectory under Memory-R1 CRUD semantics
-    # (ADD / UPDATE / DELETE / NOOP) before quality gating resumes.
+    # Asymmetric routing: first-gen goes through Evaluator, retry path skips it.
+    #   Generator       → Evaluator     (first-gen quality gate)
+    #   Reflector       → MemoryManager (sink the trajectory)
+    #   MemoryManager   → Executor      (retry path bypasses Evaluator)
     graph.add_edge("generator", "evaluator")
     graph.add_edge("reflector", "memory_manager")
-    graph.add_edge("memory_manager", "evaluator")
+    graph.add_edge("memory_manager", "executor")
 
     # ── Evaluator → Executor (pass) or Reflector (reject) ─
     graph.add_conditional_edges(
