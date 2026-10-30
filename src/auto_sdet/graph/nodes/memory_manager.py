@@ -21,6 +21,7 @@ Safety guards (defense against LLM error):
 """
 from __future__ import annotations
 
+import contextvars
 import logging
 import threading
 
@@ -67,9 +68,12 @@ def memory_manager_node(state: AgentState) -> dict:
 
     # Fire-and-forget. Daemon thread so it doesn't block process exit.
     # ChromaDB handles concurrent writes via SQLite locking under the hood.
+    # copy_context() carries the LangChain run config (callbacks, tracing
+    # parent) into the thread so its LLM call is still observed.
+    ctx = contextvars.copy_context()
     threading.Thread(
-        target=_background_process,
-        args=(pending,),
+        target=ctx.run,
+        args=(_background_process, pending),
         daemon=True,
         name=f"MemoryManager-{pending.trajectory_id[:8]}",
     ).start()

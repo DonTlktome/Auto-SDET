@@ -23,6 +23,7 @@ from rich.console import Console
 from rich.table import Table
 
 from auto_sdet.graph.graph import run_agent
+from auto_sdet.tools.llm_usage import LLMUsageTracker
 
 console = Console()
 
@@ -60,9 +61,38 @@ def _memory_size_safe() -> int | None:
         return None
 
 
+def _time_breakdown(timings: dict, llm: dict, wall_time: float) -> dict:
+    """
+    Per-module time accounting: sandbox create / pip / pytest / LLM.
+
+    `llm_critical_s` excludes the MemoryManager's background-thread calls,
+    which overlap other work; `other_s` is the remainder of wall time not
+    covered by the critical-path segments (graph overhead, embeddings,
+    file upload, infra retry backoff).
+    """
+    sandbox_create_s = timings.get("sandbox_create_ms", 0) / 1000
+    pip_install_s = timings.get("pip_install_ms", 0) / 1000
+    pytest_s = timings.get("pytest_ms", 0) / 1000
+    llm_total_s = llm.get("time_s", 0.0)
+    llm_background_s = llm.get("by_node", {}).get("memory_manager", {}).get("time_s", 0.0)
+    llm_critical_s = llm_total_s - llm_background_s
+    return {
+        "sandbox_create_s": round(sandbox_create_s, 1),
+        "pip_install_s": round(pip_install_s, 1),
+        "pytest_s": round(pytest_s, 1),
+        "llm_total_s": round(llm_total_s, 1),
+        "llm_critical_s": round(llm_critical_s, 1),
+        "upload_s": round(timings.get("upload_ms", 0) / 1000, 1),
+        "infra_backoff_s": round(timings.get("infra_backoff_ms", 0) / 1000, 1),
+        "executions": timings.get("executions", 0),
+        "other_s": round(wall_time - sandbox_create_s - pip_install_s - pytest_s - llm_critical_s, 1),
+    }
+
+
 def run_one(target: Path, output_dir: Path, max_retries: int) -> dict:
     """Run auto-sdet on one file and return a metrics dict."""
     mem_before = _memory_size_safe()
+    tracker = LLMUsageTracker()
     start = time.time()
     try:
         final_state = run_agent(
@@ -70,12 +100,14 @@ def run_one(target: Path, output_dir: Path, max_retries: int) -> dict:
             output_path=output_dir / f"test_{target.name}",
             max_retries=max_retries,
             verbose=False,
+            callbacks=[tracker],
         )
         wall_time = time.time() - start
         er = final_state.get("execution_result")
         retry_count = final_state.get("retry_count", 0)
         eval_rejects = final_state.get("evaluator_reject_count", 0)
         mem_after = _memory_size_safe()
+        llm = tracker.summary()
         return {
             "file": str(target.name),
             "status": final_state.get("status"),
@@ -92,6 +124,10 @@ def run_one(target: Path, output_dir: Path, max_retries: int) -> dict:
             "memory_size_before": mem_before,
             "memory_size_after": mem_after,
             "memory_delta": (mem_after - mem_before) if (mem_before is not None and mem_after is not None) else None,
+            # Sandbox failures retried inside the executor — NOT in retry_count.
+            "infra_failures": final_state.get("infra_failures", 0),
+            "time_breakdown": _time_breakdown(final_state.get("timings") or {}, llm, wall_time),
+            "llm_usage": llm,
             "error": None,
         }
     except Exception as e:
@@ -107,6 +143,9 @@ def run_one(target: Path, output_dir: Path, max_retries: int) -> dict:
             "memory_size_before": mem_before,
             "memory_size_after": _memory_size_safe(),
             "memory_delta": None,
+            "infra_failures": 0,
+            "time_breakdown": None,
+            "llm_usage": tracker.summary(),
             "error": str(e)[:200],
         }
 
@@ -129,6 +168,14 @@ def summarize(results: list[dict]) -> dict:
     mem_initial = mem_befores[0] if mem_befores else None
     mem_final = mem_afters[-1] if mem_afters else None
 
+    breakdowns = [r["time_breakdown"] for r in results if r.get("time_breakdown")]
+    avg_breakdown = {
+        key: round(mean(b[key] for b in breakdowns), 1)
+        for key in ("sandbox_create_s", "pip_install_s", "pytest_s", "llm_total_s",
+                    "llm_critical_s", "upload_s", "infra_backoff_s", "other_s")
+    } if breakdowns else None
+    llm_rows = [r["llm_usage"] for r in results if r.get("llm_usage")]
+
     return {
         "total": n,
         "one_shot_pass_rate": round(len(one_shot) / n * 100, 1),
@@ -144,6 +191,14 @@ def summarize(results: list[dict]) -> dict:
         "memory_net_growth": (mem_final - mem_initial) if (mem_initial is not None and mem_final is not None) else None,
         "avg_coverage_pct": round(mean(coverages), 1) if coverages else None,
         "avg_wall_time_s": round(mean(times), 1),
+        # Sandbox-side failures: retried, never counted as agent retries.
+        "total_infra_failures": sum(r.get("infra_failures", 0) for r in results),
+        "infra_failed_modules": sum(1 for r in results if r["status"] == "infra_failed"),
+        "avg_time_breakdown_s": avg_breakdown,
+        "total_llm_calls": sum(u["calls"] for u in llm_rows),
+        "total_prompt_tokens": sum(u["prompt_tokens"] for u in llm_rows),
+        "total_completion_tokens": sum(u["completion_tokens"] for u in llm_rows),
+        "total_cache_hit_tokens": sum(u["cache_hit_tokens"] for u in llm_rows),
     }
 
 

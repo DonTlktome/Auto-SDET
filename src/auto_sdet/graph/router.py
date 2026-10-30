@@ -47,6 +47,16 @@ def route_after_executor(state: AgentState) -> str:
         console.print("[bold green]→ [Router][/]  Tests passed! Routing to END.")
         return "end_success"
 
+    # ── Case 1b: Sandbox never produced a result ────────
+    # Infra errors were already retried inside the executor; the test code is
+    # not at fault, so the Reflector has nothing to fix.
+    if execution_result and getattr(execution_result, "infra_failure", False) is True:
+        console.print(
+            "[bold red]→ [Router][/]  Sandbox infrastructure failure. "
+            "Routing to END (failed, not counted as a test failure)."
+        )
+        return "end_failed"
+
     # ── Case 2: Tests failed, retries available ─────────
     if retry_count < max_retries:
         console.print(

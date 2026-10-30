@@ -109,8 +109,14 @@ def run_agent(
     output_path: Path,
     max_retries: int = 3,
     verbose: bool = False,
+    callbacks: list | None = None,
 ) -> dict:
-    """Main entry point: build graph and execute."""
+    """
+    Main entry point: build graph and execute.
+
+    `callbacks` are LangChain callback handlers attached to the whole run
+    (e.g. LLMUsageTracker for per-module LLM time / token accounting).
+    """
     # ── Build and compile graph ─────────────────────────
     app = build_graph()
 
@@ -127,13 +133,15 @@ def run_agent(
         "retry_count": 0,
         "max_retries": max_retries,
         "error_history": [],
+        "infra_failures": 0,
+        "timings": {},
         "status": "generating",
     }
 
     # ── Execute graph ───────────────────────────────────
     console.print("\n[dim]Starting LangGraph FSM...[/]\n")
 
-    final_state = app.invoke(initial_state)
+    final_state = app.invoke(initial_state, config={"callbacks": callbacks} if callbacks else None)
 
     # ── Determine final status ──────────────────────────
     execution_result = final_state.get("execution_result")
@@ -147,7 +155,10 @@ def run_agent(
 
         console.print(f"\n[bold green]✨ Test file saved to:[/] {output_path}")
     else:
-        final_state["status"] = "failed"
+        # Sandbox never producing a pytest result is reported separately:
+        # it says nothing about the quality of the generated tests.
+        infra = bool(execution_result and execution_result.infra_failure)
+        final_state["status"] = "infra_failed" if infra else "failed"
 
         # Still save the last attempt for debugging
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -158,9 +169,12 @@ def run_agent(
             last_error = error_section[:300].strip()
         else:
             last_error = "Unknown"
+        headline = (
+            "Sandbox infrastructure FAILED (test code never ran)" if infra
+            else f"Test generation FAILED after {final_state.get('retry_count', 0)} retries"
+        )
         output_path.write_text(
-            f"# AUTO-SDET: Test generation FAILED after "
-            f"{final_state.get('retry_count', 0)} retries\n"
+            f"# AUTO-SDET: {headline}\n"
             f"# Last error: {last_error}\n\n"
             f"{final_state.get('test_code', '')}",
             encoding="utf-8",

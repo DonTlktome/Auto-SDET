@@ -34,14 +34,42 @@ def executor_node(state: AgentState) -> dict:
     console.print(
         f"[bold yellow]⚡ [Executor][/]  "
         f"Sandbox {result.sandbox_id} | exit_code={result.exit_code} | "
-        f"{result.duration_ms}ms"
+        f"{result.duration_ms}ms "
+        f"(create {result.sandbox_create_ms} / pip {result.pip_install_ms} / "
+        f"pytest {result.pytest_ms})"
     )
+    if result.infra_failures:
+        console.print(
+            f"[bold yellow]⚡ [Executor][/]  {result.infra_failures} sandbox "
+            f"infra failure(s) retried (not counted as agent retries)"
+        )
+
+    # ── Accumulate time breakdown across executions ─────
+    timings = dict(state.get("timings") or {})
+    for key in ("sandbox_create_ms", "upload_ms", "pip_install_ms", "pytest_ms", "infra_backoff_ms"):
+        timings[key] = timings.get(key, 0) + getattr(result, key)
+    timings["executions"] = timings.get("executions", 0) + 1
+    update = {
+        "execution_result": result,
+        "timings": timings,
+        "infra_failures": state.get("infra_failures", 0) + result.infra_failures,
+        "status": "executing",
+    }
+
+    if result.infra_failure:
+        # Never feed a sandbox error to the Reflector — router ends the run.
+        console.print(
+            f"[bold red]✗ [Executor][/]  Sandbox infrastructure failed after "
+            f"{result.infra_failures} attempt(s): {escape(result.stderr[:300])}"
+        )
+        return update
 
     # ── Collect output into error_history ───────────────
     error_history = list(state.get("error_history", []))
     full_output = (result.stdout + result.stderr).strip()
     if result.exit_code != 0 and full_output:
         error_history.append(full_output)
+    update["error_history"] = error_history
 
     # ── Log result ──────────────────────────────────────
     if result.exit_code == 0:
@@ -57,8 +85,4 @@ def executor_node(state: AgentState) -> dict:
         output_preview = full_output[error_start:error_start + 500] if error_start != -1 else full_output[:500]
         console.print(f"[bold red]✗ [Executor][/]  Tests failed:\n[dim]{escape(output_preview)}[/]")
 
-    return {
-        "execution_result": result,
-        "error_history": error_history,
-        "status": "executing",
-    }
+    return update

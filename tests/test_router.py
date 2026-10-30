@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 from auto_sdet.graph.router import route_after_executor
-from auto_sdet.models.schemas import AgentState
+from auto_sdet.models.schemas import AgentState, ExecutionResult
 
 # Import the router module to patch its console object
 import auto_sdet.graph.router as router_module
@@ -227,3 +227,20 @@ class TestRouteAfterExecutor:
         # Assert
         assert result == "end_success"
         mock_console_print.assert_called_once()
+
+
+class TestRouteAfterExecutorInfraFailure:
+    """Sandbox infra failures end the run instead of reaching the Reflector."""
+
+    @patch.object(router_module.console, 'print')
+    def test_infra_failure_ends_even_with_retries_left(self, mock_console_print):
+        er = ExecutionResult(exit_code=-1, stderr="sandbox create failed", infra_failure=True)
+        state: AgentState = {"execution_result": er, "retry_count": 0, "max_retries": 3}
+        assert route_after_executor(state) == "end_failed"
+
+    @patch.object(router_module.console, 'print')
+    def test_non_infra_minus_one_still_reflects(self, mock_console_print):
+        er = ExecutionResult(exit_code=-1, stderr="boom")
+        state: AgentState = {"execution_result": er, "retry_count": 0, "max_retries": 3}
+        assert route_after_executor(state) == "reflect"
+

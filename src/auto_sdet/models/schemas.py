@@ -278,6 +278,23 @@ class ExecutionResult(BaseModel):
     sandbox_id: str = Field(default="", description="E2B sandbox instance ID for tracing")
     coverage_pct: Optional[int] = Field(default=None, description="Line coverage percentage (0-100), None if unavailable")
 
+    # ── Infrastructure vs test failure ──────────────────
+    # Sandbox-side failures are retried inside the executor and never reach
+    # the Reflector. `infra_failure=True` means every attempt failed.
+    infra_failure: bool = Field(default=False, description="True if the sandbox never produced a pytest result")
+    infra_failures: int = Field(default=0, description="Failed sandbox attempts during this execution (retried)")
+    infra_errors: list[str] = Field(default_factory=list, description="Error message of each failed attempt")
+
+    # ── Time breakdown (summed over all attempts of this execution) ──
+    sandbox_create_ms: int = Field(default=0)
+    upload_ms: int = Field(default=0)
+    pip_install_ms: int = Field(default=0)
+    pytest_ms: int = Field(default=0)
+    infra_backoff_ms: int = Field(default=0, description="Sleep between infra retries")
+
+    pip_packages: list[str] = Field(default_factory=list, description="Packages pip-installed in the sandbox")
+    pip_warning: Optional[str] = Field(default=None, description="Set when third-party deps failed to install")
+
 
 # ══════════════════════════════════════════════════════════
 # LangGraph Agent State  (TypedDict — 节点间共享状态)
@@ -315,6 +332,8 @@ class AgentState(TypedDict, total=False):
     error_history: list[str]              # Accumulated stderr logs for Reflector CoT
 
     # ── Observability ───────────────────────────────────
+    infra_failures: int                   # Sandbox attempts that failed and were retried (not in retry_count)
+    timings: dict[str, int]               # Summed executor time breakdown in ms (see ExecutionResult)
     status: Literal[
         "generating",
         "evaluating",
@@ -322,4 +341,5 @@ class AgentState(TypedDict, total=False):
         "reflecting",
         "done",
         "failed",
+        "infra_failed",
     ]

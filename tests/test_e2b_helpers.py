@@ -12,7 +12,15 @@ from pathlib import Path
 
 import pytest
 
-from auto_sdet.tools.e2b_sandbox import _fix_imports, _collect_internal_deps
+from auto_sdet.tools import e2b_sandbox
+from auto_sdet.tools.e2b_sandbox import (
+    InfraError,
+    SandboxExecutor,
+    _collect_internal_deps,
+    _collect_third_party_deps,
+    _fix_imports,
+)
+from auto_sdet.models.schemas import ExecutionResult
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -215,3 +223,108 @@ class TestCollectInternalDeps:
         deps = _collect_internal_deps(str(main), main.read_text())
         # Without src/, resolution uses the file's parent dir as src_root
         assert "helper.py" in deps
+
+
+# ══════════════════════════════════════════════════════════════════
+# _collect_third_party_deps
+# ══════════════════════════════════════════════════════════════════
+
+class TestCollectThirdPartyDeps:
+    """Only real third-party imports of the code under test get pip-installed."""
+
+    def test_stdlib_only_module_needs_nothing(self):
+        code = "import doctest\nfrom __future__ import annotations\nfrom math import sqrt\n"
+        assert _collect_third_party_deps([code], local_modules=set()) == []
+
+    def test_third_party_import_detected(self):
+        code = "import numpy as np\nfrom numpy import ndarray\n"
+        assert _collect_third_party_deps([code], local_modules=set()) == ["numpy"]
+
+    def test_import_name_mapped_to_distribution(self):
+        code = "import cv2\nfrom PIL import Image\nfrom sklearn.linear_model import Lasso\nimport yaml\n"
+        deps = _collect_third_party_deps([code], local_modules=set())
+        assert deps == ["pillow", "opencv-python", "scikit-learn", "pyyaml"]
+
+    def test_uploaded_local_modules_excluded(self):
+        code = "from stack import Stack\nimport helpers\n"
+        assert _collect_third_party_deps([code], local_modules={"stack", "helpers"}) == []
+
+    def test_relative_imports_excluded(self):
+        code = "from .stack import Stack\nfrom . import utils\n"
+        assert _collect_third_party_deps([code], local_modules=set()) == []
+
+    def test_project_packages_excluded(self, tmp_path: Path):
+        (tmp_path / "data_structures").mkdir()
+        (tmp_path / "helpers.py").write_text("x = 1\n")
+        code = "from data_structures.stacks.stack import Stack\nimport helpers\nimport numpy\n"
+        deps = _collect_third_party_deps([code], local_modules=set(), src_root=tmp_path)
+        assert deps == ["numpy"]
+
+    def test_agent_own_dependencies_never_injected(self):
+        """The old hard-coded langgraph/langchain list must not come back."""
+        code = "def add(a, b):\n    return a + b\n"
+        assert _collect_third_party_deps([code], local_modules=set()) == []
+
+    def test_multiple_sources_merged_and_deduplicated(self):
+        deps = _collect_third_party_deps(
+            ["import numpy\n", "import numpy as np\nimport scipy\n"], local_modules=set(),
+        )
+        assert deps == ["numpy", "scipy"]
+
+    def test_unparseable_source_skipped(self):
+        deps = _collect_third_party_deps(["def broken(:\n", "import numpy\n"], local_modules=set())
+        assert deps == ["numpy"]
+
+
+# ══════════════════════════════════════════════════════════════════
+# SandboxExecutor infra retry
+# ══════════════════════════════════════════════════════════════════
+
+class TestInfraRetry:
+    """Infra failures are retried with a fresh sandbox and kept out of test results."""
+
+    @pytest.fixture
+    def executor(self, monkeypatch) -> SandboxExecutor:
+        monkeypatch.setenv("E2B_API_KEY", "test-key")
+        monkeypatch.setattr(e2b_sandbox.time, "sleep", lambda s: None)
+        return SandboxExecutor(timeout=60)
+
+    def test_transient_failure_retried_then_succeeds(self, executor, monkeypatch):
+        calls = {"n": 0}
+
+        def fake_once(*args, **kwargs):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise InfraError("sandbox create failed: 502")
+            return ExecutionResult(stdout="1 passed", exit_code=0, sandbox_id="sbx")
+
+        monkeypatch.setattr(executor, "_execute_once", fake_once)
+        result = executor.execute_test("/x/mod.py", "", "")
+        assert result.exit_code == 0
+        assert result.infra_failure is False
+        assert result.infra_failures == 1
+        assert result.infra_backoff_ms == e2b_sandbox.INFRA_BACKOFF_S[0] * 1000
+
+    def test_persistent_failure_flagged_not_reported_as_test_failure(self, executor, monkeypatch):
+        def always_fail(*args, **kwargs):
+            raise InfraError("sandbox create failed: quota")
+
+        monkeypatch.setattr(executor, "_execute_once", always_fail)
+        result = executor.execute_test("/x/mod.py", "", "")
+        assert result.infra_failure is True
+        assert result.infra_failures == e2b_sandbox.INFRA_MAX_ATTEMPTS
+        assert len(result.infra_errors) == e2b_sandbox.INFRA_MAX_ATTEMPTS
+
+    def test_test_failure_is_not_retried(self, executor, monkeypatch):
+        calls = {"n": 0}
+
+        def failing_tests(*args, **kwargs):
+            calls["n"] += 1
+            return ExecutionResult(stdout="1 failed", exit_code=1, sandbox_id="sbx")
+
+        monkeypatch.setattr(executor, "_execute_once", failing_tests)
+        result = executor.execute_test("/x/mod.py", "", "")
+        assert calls["n"] == 1
+        assert result.exit_code == 1
+        assert result.infra_failures == 0
+

@@ -298,6 +298,12 @@ Reflector 产出 trajectory ──┐
 
 Executor 用 Python 的 `ast` 模块静态解析源文件的 import 语句，自动定位项目内部依赖，扁平化上传至 E2B 微型虚拟机的 `/workspace/`，并重写 import 适配扁平结构。每次 pytest 运行后销毁沙箱，无状态泄漏。`pytest-cov` 内置启用，覆盖率从 stdout 解析后写回 `ExecutionResult`。
 
+**沙箱内只装测试真正需要的包：** `pytest`、`pytest-cov`，加上同一次 AST 解析出的被测模块第三方依赖（排除标准库、相对导入和项目内模块，`cv2`→`opencv-python` 这类导入名与包名不一致的情况做映射）。Agent 自身的依赖（langgraph / langchain 等）不进沙箱 —— 早期版本每次都装这一串，实测 pip 步骤 7.9s → 2.8s（[`2026-10-30_pip_install_old_vs_new.json`](benchmark_results/2026-10-30_pip_install_old_vs_new.json)）。
+
+> 生产部署应使用预装 pytest / pytest-cov 的自定义 E2B 沙箱模板，把 pip 步骤彻底去掉；本仓库的基准实验仍按需安装，保证用默认 code-interpreter 模板即可复现。
+
+**基础设施故障与测试失败分离：** 沙箱创建失败、上传失败、pip 失败、pytest 运行中沙箱死亡等都归为基础设施故障，在 Executor 内换新沙箱自动重试（最多 3 次），**不计入 `retry_count`，也不交给 Reflector**；三次都失败则模块以 `infra_failed` 结束，与"测试没修好"分开统计。测试本身挂起超时（死循环、无限递归）仍算测试失败，交给 Reflector。
+
 | 隔离方案 | 隔离强度 | 启动速度 | 复杂度 |
 |---------|---------|---------|--------|
 | **E2B micro-VM** | 最高 | ~300ms | 低 |

@@ -1,0 +1,22 @@
+{
+  "measured_at": "2026-10-30",
+  "git_commit": "0a232d3bc59eaf4d41f789de374659bb72e9cf3e",
+  "script": "scripts/measure_pip_install.py",
+  "template": "e2b code-interpreter default",
+  "runs_per_command": 3,
+  "old_command": "pip install pytest pytest-cov langgraph langchain-openai langchain-core pydantic pydantic-settings",
+  "new_command": "pip install -q --disable-pip-version-check pytest pytest-cov",
+  "old_s": [
+    8.5,
+    7.6,
+    7.5
+  ],
+  "new_s": [
+    3.3,
+    1.6,
+    3.5
+  ],
+  "old_mean_s": 7.9,
+  "new_mean_s": 2.8,
+  "note": "Fresh sandbox per run; time of the pip command only (excludes sandbox create)."
+}

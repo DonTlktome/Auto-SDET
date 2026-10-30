@@ -154,9 +154,19 @@ class TestExecutionResult:
             "exit_code": 1,
             "duration_ms": 0,
             "sandbox_id": "",
-            "coverage_pct": None
+            "coverage_pct": None,
+            "infra_failure": False,
+            "infra_failures": 0,
+            "infra_errors": [],
+            "sandbox_create_ms": 0,
+            "upload_ms": 0,
+            "pip_install_ms": 0,
+            "pytest_ms": 0,
+            "infra_backoff_ms": 0,
+            "pip_packages": [],
+            "pip_warning": None,
         }
-    
+
     def test_coverage_pct_optional(self):
         """Test that coverage_pct can be omitted entirely."""
         result = ExecutionResult(exit_code=0)
