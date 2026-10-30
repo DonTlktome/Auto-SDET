@@ -10,6 +10,7 @@ from rich.markup import escape
 
 from auto_sdet.models.schemas import AgentState
 from auto_sdet.tools.e2b_sandbox import SandboxExecutor
+from auto_sdet.tools.run_trace import clip, trace_event
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -43,6 +44,22 @@ def executor_node(state: AgentState) -> dict:
             f"[bold yellow]⚡ [Executor][/]  {result.infra_failures} sandbox "
             f"infra failure(s) retried (not counted as agent retries)"
         )
+
+    retry = state.get("retry_count", 0)
+    trace_event(
+        "execution",
+        module=state.get("module_id"),
+        retry=retry,
+        exit_code=result.exit_code,
+        passed=result.exit_code == 0,
+        infra_failure=result.infra_failure,
+        infra_failures=result.infra_failures,
+        coverage_pct=result.coverage_pct,
+        output=clip((result.stdout + result.stderr).strip()),
+        # Reflection events already carry the patched code; only the
+        # Generator's first version needs to be recorded here.
+        test_code=clip(state["test_code"]) if retry == 0 else None,
+    )
 
     # ── Accumulate time breakdown across executions ─────
     timings = dict(state.get("timings") or {})

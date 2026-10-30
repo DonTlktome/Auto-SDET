@@ -145,6 +145,7 @@ def run_one(bench_dir: Path, module: str, output_dir: Path, max_retries: int) ->
             max_retries=max_retries,
             verbose=False,
             callbacks=[tracker],
+            module_id=module,
         )
         wall_time = time.time() - start
         er = final_state.get("execution_result")

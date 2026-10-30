@@ -106,18 +106,30 @@ def build_graph() -> StateGraph:
     return graph.compile()
 
 
+def _default_module_id(target_path: Path) -> str:
+    """Path of the target relative to the nearest git / pyproject root, else its name."""
+    resolved = target_path.resolve()
+    for parent in resolved.parents:
+        if (parent / ".git").exists() or (parent / "pyproject.toml").exists():
+            return resolved.relative_to(parent).as_posix()
+    return resolved.name
+
+
 def run_agent(
     target_path: Path,
     output_path: Path,
     max_retries: int = 3,
     verbose: bool = False,
     callbacks: list | None = None,
+    module_id: str | None = None,
 ) -> dict:
     """
     Main entry point: build graph and execute.
 
     `callbacks` are LangChain callback handlers attached to the whole run
     (e.g. LLMUsageTracker for per-module LLM time / token accounting).
+    `module_id` identifies the target across runs (default: path relative to
+    the enclosing git / pyproject root), so same-named files stay distinct.
     """
     # ── Build and compile graph ─────────────────────────
     app = build_graph()
@@ -125,6 +137,7 @@ def run_agent(
     # ── Prepare initial state ───────────────────────────
     initial_state: AgentState = {
         "source_path": str(target_path.resolve()),
+        "module_id": module_id or _default_module_id(target_path),
         "source_code": "",            # Generator populates via Tool Use
         "context_files": {},
         "test_code": "",

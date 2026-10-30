@@ -55,6 +55,13 @@ class MemoryTrajectory(BaseModel):
     trajectory_id: str = Field(..., description="UUID for this trajectory")
     timestamp: str = Field(..., description="ISO-8601 UTC timestamp")
     target_file: str = Field(..., description="Source file basename (e.g. 'fibonacci.py')")
+    source_module: str = Field(
+        default="",
+        description=(
+            "Module path relative to the project root (e.g. 'maths/fibonacci.py'). "
+            "Disambiguates same-named files; metadata only, never embedded."
+        ),
+    )
 
     # ── Embedded for retrieval ─────────────────
     error_signature: str = Field(
@@ -306,6 +313,7 @@ class AgentState(TypedDict, total=False):
     # ── Input context (set by CLI / Generator) ──────────
     source_code: str                      # Target source file content
     source_path: str                      # Target source file path (for E2B upload)
+    module_id: str                        # Path relative to the project root — identity for memory / traces
     context_files: dict[str, str]         # {filename: content} of sibling .py files
 
     # ── Generated test (set by Generator / Reflector) ───

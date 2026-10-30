@@ -34,6 +34,7 @@ from auto_sdet.models.schemas import AgentState, MemoryOperation, MemoryTrajecto
 from auto_sdet.prompts.memory_manager import build_memory_manager_prompt
 from auto_sdet.tools.llm_factory import get_llm
 from auto_sdet.tools.memory_store import MemoryStore, get_memory_store
+from auto_sdet.tools.run_trace import trace_event
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -136,6 +137,7 @@ def _background_process(pending: MemoryTrajectory) -> None:
                 f"[dim cyan]🗂  [MemoryManager bg][/]  "
                 f"No neighbors → direct ADD (cold-path short-circuit)"
             )
+            _trace_op(pending, "ADD", None, "no neighbors (short-circuit)", neighbors)
             return
 
         # ── Step 2: Ask the LLM to decide the operation ──
@@ -164,15 +166,38 @@ def _background_process(pending: MemoryTrajectory) -> None:
                 f"Decision LLM failed ({escape(failure_reason or 'unknown')[:60]}…) — defaulting to ADD"
             )
             memory.add_trajectory(pending)
+            _trace_op(pending, "ADD", None, f"decision LLM failed: {failure_reason}"[:300], neighbors)
             return
 
         # ── Step 3: Validate + apply the operation ──
         op = _enforce_safety_guards(op, neighbors)
         _apply_operation(op, pending, neighbors, memory)
+        _trace_op(pending, op.operation, op.target_trajectory_id, op.reasoning, neighbors)
     except Exception as e:
         # Catch-all: a background thread crashing on its own is fine, but we
         # log it so debugging is still possible.
         logger.exception(f"MemoryManager background thread failed: {e}")
+
+
+def _trace_op(
+    pending: MemoryTrajectory,
+    operation: str,
+    target_id: str | None,
+    reasoning: str,
+    neighbors: list[MemoryTrajectory],
+) -> None:
+    trace_event(
+        "memory_op",
+        module=pending.source_module or pending.target_file,
+        trajectory_id=pending.trajectory_id,
+        operation=operation,
+        target_id=target_id,
+        reasoning=reasoning,
+        outcome=pending.outcome,
+        error_signature=pending.error_signature,
+        neighbor_ids=[n.trajectory_id for n in neighbors],
+        neighbor_modules=[n.source_module or n.target_file for n in neighbors],
+    )
 
 
 # ──────────────────────────────────────────────────────────────────

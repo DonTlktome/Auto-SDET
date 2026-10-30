@@ -177,15 +177,27 @@ class MemoryStore:
 
         Over-fetches by 2x to compensate for post-query filtering.
         """
+        return self.retrieve_with_candidates(query_text, k, include_deprecated)[0]
+
+    def retrieve_with_candidates(
+        self,
+        query_text: str,
+        k: int = 3,
+        include_deprecated: bool = False,
+    ) -> tuple[list[MemoryTrajectory], list[dict]]:
+        """
+        Same selection as `retrieve_similar`, plus a scored record of every
+        candidate Chroma returned (kept or filtered) for experiment tracing.
+        """
         coll = self._get_collection()
         try:
             count = coll.count()
         except Exception as e:
             logger.warning(f"MemoryStore.count failed: {e}")
-            return []
+            return [], []
 
         if count == 0:
-            return []   # cold start — no history yet
+            return [], []   # cold start — no history yet
 
         # Over-fetch: filtering out deprecated/noise might leave us short
         try:
@@ -195,7 +207,7 @@ class MemoryStore:
             )
         except Exception as e:
             logger.warning(f"MemoryStore.retrieve_similar failed: {e}")
-            return []
+            return [], []
 
         # Chroma returns parallel arrays under the first batch (we sent 1 query)
         ids = result.get("ids", [[]])[0]
@@ -203,21 +215,33 @@ class MemoryStore:
         distances = result.get("distances", [[]])[0]
 
         keep: list[MemoryTrajectory] = []
+        candidates: list[dict] = []
         for tid, meta, dist in zip(ids, metadatas, distances):
             # Chroma returns L2 distance by default; smaller = more similar.
             # Convert to a rough similarity score in [0, 1] for thresholding.
             similarity = 1.0 / (1.0 + dist)
+            candidate = {
+                "id": tid,
+                "source_module": meta.get("source_module", ""),
+                "target_file": meta.get("target_file", ""),
+                "similarity": round(similarity, 4),
+                "distance": round(dist, 4),
+                "deprecated": bool(meta.get("deprecated", False)),
+                "kept": False,
+            }
+            candidates.append(candidate)
+            if len(keep) >= k:
+                continue
             if similarity < SIMILARITY_THRESHOLD:
                 continue
             if not include_deprecated and meta.get("deprecated", False):
                 continue
             try:
                 keep.append(self._metadata_to_traj(tid, meta))
+                candidate["kept"] = True
             except Exception as e:
                 logger.warning(f"Skipping malformed memory {tid}: {e}")
-            if len(keep) >= k:
-                break
-        return keep
+        return keep, candidates
 
     def count(self, include_deprecated: bool = False) -> int:
         """
@@ -278,6 +302,7 @@ class MemoryStore:
         return {
             "timestamp": traj.timestamp,
             "target_file": traj.target_file,
+            "source_module": traj.source_module,
             "error_signature": traj.error_signature,
             "error_classification": traj.error_classification,
             "root_cause": traj.root_cause,
@@ -295,6 +320,7 @@ class MemoryStore:
             trajectory_id=tid,
             timestamp=meta["timestamp"],
             target_file=meta["target_file"],
+            source_module=meta.get("source_module", ""),
             error_signature=meta["error_signature"],
             error_classification=meta["error_classification"],
             root_cause=meta["root_cause"],
@@ -344,12 +370,14 @@ def build_trajectory(
     fix_summary: str,
     target_file: str,
     outcome: str = "fix_applied",
+    source_module: str = "",
 ) -> MemoryTrajectory:
     """Construct a MemoryTrajectory with auto-filled id/timestamp/signature."""
     return MemoryTrajectory(
         trajectory_id=str(uuid.uuid4()),
         timestamp=datetime.now(timezone.utc).isoformat(),
         target_file=target_file,
+        source_module=source_module,
         error_signature=build_error_signature(
             error_classification, root_cause, target_file
         ),

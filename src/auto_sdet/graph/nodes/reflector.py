@@ -21,6 +21,7 @@ from pathlib import Path
 from auto_sdet.models.schemas import AgentState, ReflectionResult
 from auto_sdet.tools.llm_factory import get_llm
 from auto_sdet.tools.memory_store import build_trajectory, get_memory_store
+from auto_sdet.tools.run_trace import clip, trace_event
 from auto_sdet.prompts.reflector import build_reflector_prompt
 
 logger = logging.getLogger(__name__)
@@ -49,8 +50,32 @@ def reflector_node(state: AgentState) -> dict:
     # for similarity search.
     memory = get_memory_store()
     target_file = Path(state["source_path"]).name
+    module_id = state.get("module_id") or target_file
     query_text = f"{latest_error[:300]} [in {target_file}]"
-    similar_cases = memory.retrieve_similar(query_text, k=3) if memory else []
+    similar_cases, candidates = (
+        memory.retrieve_with_candidates(query_text, k=3) if memory else ([], [])
+    )
+
+    # Experiment trace (observability only). `retry` is the attempt this fix
+    # is for — the execution event with the same (module, retry) says whether
+    # it worked.
+    trace = {
+        "module": module_id,
+        "retry": retry_count + 1,
+        "trigger": _trigger_of(execution_result),
+        "memory_enabled": memory is not None,
+        "latest_error": clip(latest_error),
+        "query": query_text if memory else None,
+        "candidates": candidates,
+        "injected": [
+            c.model_dump(include={
+                "trajectory_id", "source_module", "target_file", "error_signature",
+                "error_classification", "root_cause", "fix_strategy", "fix_summary", "outcome",
+            })
+            for c in similar_cases
+        ],
+        "test_before": clip(state["test_code"]),
+    }
 
     if memory is None:
         console.print("[dim cyan]🧠 [Reflector][/]  Episodic memory disabled — skipping retrieval")
@@ -119,6 +144,7 @@ def reflector_node(state: AgentState) -> dict:
             "[bold red]✗ [Reflector][/]  Aborting self-healing loop "
             "(no point retrying with the same broken contract)"
         )
+        trace_event("reflection", **trace, fix_produced=False, failure_reason=(failure_reason or "")[:500])
         return {
             "test_code": state["test_code"],
             "retry_count": max_retries,        # saturate → next router pass goes to end_failed
@@ -178,11 +204,23 @@ def reflector_node(state: AgentState) -> dict:
                 fix_summary=_extract_fix_summary(diff),
                 target_file=target_file,
                 outcome="fix_applied",
+                source_module=module_id,
             )
         except Exception as e:
             # Trajectory build failure is non-fatal — Memory Manager will
             # see pending_trajectory=None and skip its CRUD logic.
             logger.warning(f"Failed to build pending trajectory: {e}")
+
+    trace_event(
+        "reflection",
+        **trace,
+        fix_produced=True,
+        classification=result.error_classification,
+        root_cause=result.root_cause,
+        fix_strategy=result.fix_strategy,
+        test_after=clip(patched_test_code),
+        pending_trajectory_id=pending_trajectory.trajectory_id if pending_trajectory else None,
+    )
 
     # ── Step 7: Return updated state ────────────────────
     return {
@@ -191,6 +229,13 @@ def reflector_node(state: AgentState) -> dict:
         "status": "executing",
         "pending_trajectory": pending_trajectory,
     }
+
+
+def _trigger_of(execution_result) -> str:
+    """What sent us to the Reflector: a real pytest run, the LLM judge, or ruff."""
+    if execution_result is None:
+        return "unknown"
+    return {-100: "evaluator_reject", -101: "ruff_fatal"}.get(execution_result.exit_code, "pytest")
 
 
 def _extract_fix_summary(diff: list[str], max_chars: int = 300) -> str:
