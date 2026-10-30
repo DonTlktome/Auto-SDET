@@ -83,12 +83,15 @@ class MemoryTrajectory(BaseModel):
             "with patch.object(x, \"y\")'). NOT the full diff."
         ),
     )
-    outcome: Literal["fix_applied", "fix_failed_max_retries"] = Field(
+    outcome: Literal["fix_applied", "fix_failed_max_retries", "fix_failed", "pending"] = Field(
         ...,
         description=(
             "Whether the overall agent run succeeded after this fix. "
             "Failed trajectories are still stored — they teach the next run "
-            "'this approach didn't work, try something else'."
+            "'this approach didn't work, try something else'. "
+            "Legacy variant writes 'fix_applied' before re-running pytest; the "
+            "signature variant holds the trajectory as 'pending' and writes "
+            "'fix_applied' / 'fix_failed' from the actual re-run result."
         ),
     )
 

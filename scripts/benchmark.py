@@ -356,7 +356,8 @@ def build_metadata(args: argparse.Namespace, run_name: str, modules: list[str], 
     if settings.memory_enabled and settings.memory_variant == "legacy":
         memory["similarity"] = {"metric": "1/(1+squared_l2)", "threshold": 0.4, "top_k": 3}
     elif settings.memory_enabled:
-        memory["similarity"] = {"metric": "cosine", "threshold": settings.memory_cosine_threshold, "top_k": 3}
+        memory["similarity"] = {"metric": "cosine", "threshold": settings.memory_cosine_threshold, "top_k": 3,
+                                "calibration_file": args.calibration_file.as_posix() if args.calibration_file else None}
 
     return {
         "run_name": run_name,
@@ -412,12 +413,22 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=None, help="Run only the first N modules (smoke test)")
     parser.add_argument("--resume", action="store_true", help="Continue an interrupted run, skipping finished modules")
     parser.add_argument("--note", default="", help="Free-form note stored in metadata (e.g. concurrency)")
+    parser.add_argument("--cosine-threshold", type=float, default=None,
+                        help="Config C only: calibrated cosine threshold for signature memory")
+    parser.add_argument("--calibration-file", type=Path, default=None,
+                        help="Config C only: calibration report the threshold comes from")
     args = parser.parse_args()
 
     if not args.bench_dir.exists():
         console.print(f"[bold red]Error:[/] bench dir does not exist: {args.bench_dir}")
         console.print("[dim]Hint: clone https://github.com/TheAlgorithms/Python to that path[/]")
         sys.exit(1)
+
+    if CONFIGS[args.config]["env"]["MEMORY_VARIANT"] == "signature":
+        if args.cosine_threshold is None or args.calibration_file is None or not args.calibration_file.exists():
+            console.print("[bold red]Error:[/] config C needs --cosine-threshold and an existing --calibration-file")
+            sys.exit(1)
+        os.environ["MEMORY_COSINE_THRESHOLD"] = str(args.cosine_threshold)
 
     modules = BENCH_MODULES[: args.limit] if args.limit else BENCH_MODULES
     missing = [m for m in modules if not (args.bench_dir / m).exists()]
