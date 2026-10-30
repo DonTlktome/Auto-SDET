@@ -1,0 +1,39 @@
+# Environment
+.env
+
+# Reflexion episodic memory (chromadb persistent storage, runtime artifact)
+.auto_sdet_memory/
+
+# Local notes (not for public)
+README2.md
+INTERVIEW_NOTES.md
+
+# Virtual environment
+.venv/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# pytest
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Build
+dist/
+build/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+.claude/

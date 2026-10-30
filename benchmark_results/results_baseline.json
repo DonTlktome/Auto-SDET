@@ -1,0 +1,183 @@
+{
+  "summary": {
+    "total": 19,
+    "one_shot_pass_rate": 68.4,
+    "final_pass_rate": 94.7,
+    "avg_retries": 0.53,
+    "avg_coverage_pct": 72.2,
+    "avg_wall_time_s": 201.9
+  },
+  "results": [
+    {
+      "file": "prime_check.py",
+      "status": "done",
+      "retry_count": 0,
+      "exit_code": 0,
+      "coverage_pct": 47,
+      "wall_time_s": 49.1,
+      "error": null
+    },
+    {
+      "file": "fibonacci.py",
+      "status": "done",
+      "retry_count": 0,
+      "exit_code": 0,
+      "coverage_pct": 88,
+      "wall_time_s": 240.6,
+      "error": null
+    },
+    {
+      "file": "factorial.py",
+      "status": "done",
+      "retry_count": 1,
+      "exit_code": 0,
+      "coverage_pct": 80,
+      "wall_time_s": 198.8,
+      "error": null
+    },
+    {
+      "file": "gcd_of_n_numbers.py",
+      "status": "done",
+      "retry_count": 0,
+      "exit_code": 0,
+      "coverage_pct": 97,
+      "wall_time_s": 109.1,
+      "error": null
+    },
+    {
+      "file": "sigmoid.py",
+      "status": "done",
+      "retry_count": 0,
+      "exit_code": 0,
+      "coverage_pct": 67,
+      "wall_time_s": 84.6,
+      "error": null
+    },
+    {
+      "file": "bubble_sort.py",
+      "status": "done",
+      "retry_count": 0,
+      "exit_code": 0,
+      "coverage_pct": 58,
+      "wall_time_s": 90.8,
+      "error": null
+    },
+    {
+      "file": "quick_sort.py",
+      "status": "done",
+      "retry_count": 3,
+      "exit_code": 0,
+      "coverage_pct": 79,
+      "wall_time_s": 431.0,
+      "error": null
+    },
+    {
+      "file": "merge_sort.py",
+      "status": "done",
+      "retry_count": 0,
+      "exit_code": 0,
+      "coverage_pct": 59,
+      "wall_time_s": 69.4,
+      "error": null
+    },
+    {
+      "file": "insertion_sort.py",
+      "status": "done",
+      "retry_count": 0,
+      "exit_code": 0,
+      "coverage_pct": 72,
+      "wall_time_s": 104.1,
+      "error": null
+    },
+    {
+      "file": "binary_search.py",
+      "status": "failed",
+      "retry_count": 3,
+      "exit_code": 1,
+      "coverage_pct": 84,
+      "wall_time_s": 1147.2,
+      "error": null
+    },
+    {
+      "file": "linear_search.py",
+      "status": "done",
+      "retry_count": 0,
+      "exit_code": 0,
+      "coverage_pct": 70,
+      "wall_time_s": 116.6,
+      "error": null
+    },
+    {
+      "file": "palindrome.py",
+      "status": "done",
+      "retry_count": 0,
+      "exit_code": 0,
+      "coverage_pct": 65,
+      "wall_time_s": 52.3,
+      "error": null
+    },
+    {
+      "file": "reverse_words.py",
+      "status": "done",
+      "retry_count": 0,
+      "exit_code": 0,
+      "coverage_pct": 60,
+      "wall_time_s": 45.0,
+      "error": null
+    },
+    {
+      "file": "word_occurrence.py",
+      "status": "done",
+      "retry_count": 1,
+      "exit_code": 0,
+      "coverage_pct": 78,
+      "wall_time_s": 145.9,
+      "error": null
+    },
+    {
+      "file": "stack.py",
+      "status": "done",
+      "retry_count": 0,
+      "exit_code": 0,
+      "coverage_pct": 49,
+      "wall_time_s": 108.0,
+      "error": null
+    },
+    {
+      "file": "queue_by_list.py",
+      "status": "done",
+      "retry_count": 1,
+      "exit_code": 0,
+      "coverage_pct": 92,
+      "wall_time_s": 181.8,
+      "error": null
+    },
+    {
+      "file": "singly_linked_list.py",
+      "status": "done",
+      "retry_count": 1,
+      "exit_code": 0,
+      "coverage_pct": 51,
+      "wall_time_s": 387.7,
+      "error": null
+    },
+    {
+      "file": "decimal_to_binary.py",
+      "status": "done",
+      "retry_count": 0,
+      "exit_code": 0,
+      "coverage_pct": 92,
+      "wall_time_s": 122.3,
+      "error": null
+    },
+    {
+      "file": "fibonacci.py",
+      "status": "done",
+      "retry_count": 0,
+      "exit_code": 0,
+      "coverage_pct": 96,
+      "wall_time_s": 152.6,
+      "error": null
+    }
+  ]
+}
