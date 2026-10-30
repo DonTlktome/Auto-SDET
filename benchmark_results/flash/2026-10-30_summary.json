@@ -1,0 +1,855 @@
+{
+  "prices_usd_per_1m": {
+    "deepseek-v4-pro": {
+      "input_cache_miss": 1.32,
+      "input_cache_hit": 0.044,
+      "output": 3.96
+    },
+    "deepseek-v4-flash": {
+      "input_cache_miss": 0.14,
+      "input_cache_hit": 0.014,
+      "output": 0.28
+    }
+  },
+  "configs": {
+    "A": {
+      "n_runs": 3,
+      "model": "deepseek-v4-flash",
+      "git_commits": [
+        "275ff17732365e7ca8630d1269cf1d45130af81d"
+      ],
+      "runs": [
+        {
+          "file": "benchmark_results/flash/2026-10-30_A_r1.json",
+          "finished": true,
+          "total": 19,
+          "one_shot_pass_rate": 31.6,
+          "final_pass_rate": 94.7,
+          "avg_retries": 0.84,
+          "avg_evaluator_rejects": 0,
+          "avg_executor_retries": 0.84,
+          "total_evaluator_rejects": 0,
+          "memory_initial": 0,
+          "memory_final": 13,
+          "memory_net_growth": 13,
+          "avg_coverage_pct": 78.9,
+          "avg_wall_time_s": 63.9,
+          "total_infra_failures": 0,
+          "total_reflector_attempts": 16,
+          "total_reflector_failed_attempts": 0,
+          "total_reflector_truncated": 2,
+          "total_reflector_parse_errors": 1,
+          "total_reflector_recovered": 3,
+          "total_evaluator_structured_failures": 1,
+          "infra_failed_modules": 0,
+          "avg_time_breakdown_s": {
+            "sandbox_create_s": 0.8,
+            "pip_install_s": 3.8,
+            "pytest_s": 2.4,
+            "llm_total_s": 54.5,
+            "llm_critical_s": 52.9,
+            "upload_s": 1.6,
+            "infra_backoff_s": 0.0,
+            "memory_flush_s": 0.0,
+            "other_s": 4.0
+          },
+          "total_llm_calls": 91,
+          "total_prompt_tokens": 372938,
+          "total_completion_tokens": 198810,
+          "total_cache_hit_tokens": 133243,
+          "cost_usd": 0.09
+        },
+        {
+          "file": "benchmark_results/flash/2026-10-30_A_r2.json",
+          "finished": true,
+          "total": 19,
+          "one_shot_pass_rate": 21.1,
+          "final_pass_rate": 100.0,
+          "avg_retries": 0.79,
+          "avg_evaluator_rejects": 0,
+          "avg_executor_retries": 0.79,
+          "total_evaluator_rejects": 0,
+          "memory_initial": 0,
+          "memory_final": 14,
+          "memory_net_growth": 14,
+          "avg_coverage_pct": 77.9,
+          "avg_wall_time_s": 61.1,
+          "total_infra_failures": 0,
+          "total_reflector_attempts": 15,
+          "total_reflector_failed_attempts": 0,
+          "total_reflector_truncated": 0,
+          "total_reflector_parse_errors": 0,
+          "total_reflector_recovered": 0,
+          "total_evaluator_structured_failures": 1,
+          "infra_failed_modules": 0,
+          "avg_time_breakdown_s": {
+            "sandbox_create_s": 0.8,
+            "pip_install_s": 5.1,
+            "pytest_s": 6.2,
+            "llm_total_s": 46.6,
+            "llm_critical_s": 44.9,
+            "upload_s": 1.7,
+            "infra_backoff_s": 0.0,
+            "memory_flush_s": 0.0,
+            "other_s": 4.0
+          },
+          "total_llm_calls": 86,
+          "total_prompt_tokens": 300546,
+          "total_completion_tokens": 189234,
+          "total_cache_hit_tokens": 127482,
+          "cost_usd": 0.08
+        },
+        {
+          "file": "benchmark_results/flash/2026-10-30_A_r3.json",
+          "finished": true,
+          "total": 19,
+          "one_shot_pass_rate": 47.4,
+          "final_pass_rate": 100.0,
+          "avg_retries": 0.58,
+          "avg_evaluator_rejects": 0,
+          "avg_executor_retries": 0.58,
+          "total_evaluator_rejects": 0,
+          "memory_initial": 0,
+          "memory_final": 10,
+          "memory_net_growth": 10,
+          "avg_coverage_pct": 77.8,
+          "avg_wall_time_s": 57.4,
+          "total_infra_failures": 0,
+          "total_reflector_attempts": 11,
+          "total_reflector_failed_attempts": 0,
+          "total_reflector_truncated": 1,
+          "total_reflector_parse_errors": 0,
+          "total_reflector_recovered": 1,
+          "total_evaluator_structured_failures": 2,
+          "infra_failed_modules": 0,
+          "avg_time_breakdown_s": {
+            "sandbox_create_s": 0.6,
+            "pip_install_s": 3.4,
+            "pytest_s": 2.2,
+            "llm_total_s": 49.4,
+            "llm_critical_s": 47.9,
+            "upload_s": 1.3,
+            "infra_backoff_s": 0.0,
+            "memory_flush_s": 0.1,
+            "other_s": 3.1
+          },
+          "total_llm_calls": 79,
+          "total_prompt_tokens": 267258,
+          "total_completion_tokens": 168295,
+          "total_cache_hit_tokens": 112634,
+          "cost_usd": 0.07
+        }
+      ],
+      "metrics": {
+        "one_shot_pass_rate": {
+          "mean": 33.37,
+          "min": 21.1,
+          "max": 47.4
+        },
+        "final_pass_rate": {
+          "mean": 98.23,
+          "min": 94.7,
+          "max": 100.0
+        },
+        "avg_retries": {
+          "mean": 0.74,
+          "min": 0.58,
+          "max": 0.84
+        },
+        "avg_coverage_pct": {
+          "mean": 78.2,
+          "min": 77.8,
+          "max": 78.9
+        },
+        "avg_wall_time_s": {
+          "mean": 60.8,
+          "min": 57.4,
+          "max": 63.9
+        },
+        "total_reflector_attempts": {
+          "mean": 14,
+          "min": 11,
+          "max": 16
+        },
+        "total_reflector_failed_attempts": {
+          "mean": 0,
+          "min": 0,
+          "max": 0
+        },
+        "total_reflector_truncated": {
+          "mean": 1,
+          "min": 0,
+          "max": 2
+        },
+        "total_reflector_parse_errors": {
+          "mean": 0.33,
+          "min": 0,
+          "max": 1
+        },
+        "total_reflector_recovered": {
+          "mean": 1.33,
+          "min": 0,
+          "max": 3
+        },
+        "total_evaluator_structured_failures": {
+          "mean": 1.33,
+          "min": 1,
+          "max": 2
+        },
+        "total_infra_failures": {
+          "mean": 0,
+          "min": 0,
+          "max": 0
+        },
+        "infra_failed_modules": {
+          "mean": 0,
+          "min": 0,
+          "max": 0
+        },
+        "total_llm_calls": {
+          "mean": 85.33,
+          "min": 79,
+          "max": 91
+        },
+        "cost_usd": {
+          "mean": 0.08,
+          "min": 0.07,
+          "max": 0.09
+        },
+        "time_breakdown_s": {
+          "sandbox_create_s": {
+            "mean": 0.73,
+            "min": 0.6,
+            "max": 0.8
+          },
+          "pip_install_s": {
+            "mean": 4.1,
+            "min": 3.4,
+            "max": 5.1
+          },
+          "pytest_s": {
+            "mean": 3.6,
+            "min": 2.2,
+            "max": 6.2
+          },
+          "llm_total_s": {
+            "mean": 50.17,
+            "min": 46.6,
+            "max": 54.5
+          },
+          "llm_critical_s": {
+            "mean": 48.57,
+            "min": 44.9,
+            "max": 52.9
+          },
+          "memory_flush_s": {
+            "mean": 0.03,
+            "min": 0.0,
+            "max": 0.1
+          },
+          "other_s": {
+            "mean": 3.7,
+            "min": 3.1,
+            "max": 4.0
+          }
+        }
+      }
+    },
+    "B": {
+      "n_runs": 3,
+      "model": "deepseek-v4-flash",
+      "git_commits": [
+        "275ff17732365e7ca8630d1269cf1d45130af81d"
+      ],
+      "runs": [
+        {
+          "file": "benchmark_results/flash/2026-10-30_B_r1.json",
+          "finished": true,
+          "total": 19,
+          "one_shot_pass_rate": 36.8,
+          "final_pass_rate": 100.0,
+          "avg_retries": 0.79,
+          "avg_evaluator_rejects": 0,
+          "avg_executor_retries": 0.79,
+          "total_evaluator_rejects": 0,
+          "memory_initial": null,
+          "memory_final": null,
+          "memory_net_growth": null,
+          "avg_coverage_pct": 80.2,
+          "avg_wall_time_s": 65.6,
+          "total_infra_failures": 0,
+          "total_reflector_attempts": 15,
+          "total_reflector_failed_attempts": 0,
+          "total_reflector_truncated": 2,
+          "total_reflector_parse_errors": 0,
+          "total_reflector_recovered": 2,
+          "total_evaluator_structured_failures": 2,
+          "infra_failed_modules": 0,
+          "avg_time_breakdown_s": {
+            "sandbox_create_s": 0.7,
+            "pip_install_s": 4.1,
+            "pytest_s": 2.5,
+            "llm_total_s": 55.3,
+            "llm_critical_s": 55.3,
+            "upload_s": 1.2,
+            "infra_backoff_s": 0.0,
+            "memory_flush_s": 0.0,
+            "other_s": 3.1
+          },
+          "total_llm_calls": 74,
+          "total_prompt_tokens": 308713,
+          "total_completion_tokens": 197384,
+          "total_cache_hit_tokens": 114811,
+          "cost_usd": 0.08
+        },
+        {
+          "file": "benchmark_results/flash/2026-10-30_B_r2.json",
+          "finished": true,
+          "total": 19,
+          "one_shot_pass_rate": 15.8,
+          "final_pass_rate": 100.0,
+          "avg_retries": 0.95,
+          "avg_evaluator_rejects": 0,
+          "avg_executor_retries": 0.95,
+          "total_evaluator_rejects": 0,
+          "memory_initial": null,
+          "memory_final": null,
+          "memory_net_growth": null,
+          "avg_coverage_pct": 76.8,
+          "avg_wall_time_s": 69.6,
+          "total_infra_failures": 0,
+          "total_reflector_attempts": 18,
+          "total_reflector_failed_attempts": 0,
+          "total_reflector_truncated": 1,
+          "total_reflector_parse_errors": 0,
+          "total_reflector_recovered": 1,
+          "total_evaluator_structured_failures": 0,
+          "infra_failed_modules": 0,
+          "avg_time_breakdown_s": {
+            "sandbox_create_s": 0.7,
+            "pip_install_s": 4.4,
+            "pytest_s": 3.2,
+            "llm_total_s": 57.8,
+            "llm_critical_s": 57.8,
+            "upload_s": 1.4,
+            "infra_backoff_s": 0.0,
+            "memory_flush_s": 0.0,
+            "other_s": 3.6
+          },
+          "total_llm_calls": 76,
+          "total_prompt_tokens": 371563,
+          "total_completion_tokens": 228655,
+          "total_cache_hit_tokens": 124026,
+          "cost_usd": 0.1
+        },
+        {
+          "file": "benchmark_results/flash/2026-10-30_B_r3.json",
+          "finished": true,
+          "total": 19,
+          "one_shot_pass_rate": 26.3,
+          "final_pass_rate": 100.0,
+          "avg_retries": 0.79,
+          "avg_evaluator_rejects": 0,
+          "avg_executor_retries": 0.79,
+          "total_evaluator_rejects": 0,
+          "memory_initial": null,
+          "memory_final": null,
+          "memory_net_growth": null,
+          "avg_coverage_pct": 78,
+          "avg_wall_time_s": 63.8,
+          "total_infra_failures": 0,
+          "total_reflector_attempts": 15,
+          "total_reflector_failed_attempts": 0,
+          "total_reflector_truncated": 0,
+          "total_reflector_parse_errors": 0,
+          "total_reflector_recovered": 0,
+          "total_evaluator_structured_failures": 5,
+          "infra_failed_modules": 0,
+          "avg_time_breakdown_s": {
+            "sandbox_create_s": 0.8,
+            "pip_install_s": 4.0,
+            "pytest_s": 2.6,
+            "llm_total_s": 52.6,
+            "llm_critical_s": 52.6,
+            "upload_s": 1.9,
+            "infra_backoff_s": 0.0,
+            "memory_flush_s": 0.0,
+            "other_s": 3.8
+          },
+          "total_llm_calls": 72,
+          "total_prompt_tokens": 297893,
+          "total_completion_tokens": 212797,
+          "total_cache_hit_tokens": 118650,
+          "cost_usd": 0.09
+        }
+      ],
+      "metrics": {
+        "one_shot_pass_rate": {
+          "mean": 26.3,
+          "min": 15.8,
+          "max": 36.8
+        },
+        "final_pass_rate": {
+          "mean": 100.0,
+          "min": 100.0,
+          "max": 100.0
+        },
+        "avg_retries": {
+          "mean": 0.84,
+          "min": 0.79,
+          "max": 0.95
+        },
+        "avg_coverage_pct": {
+          "mean": 78.33,
+          "min": 76.8,
+          "max": 80.2
+        },
+        "avg_wall_time_s": {
+          "mean": 66.33,
+          "min": 63.8,
+          "max": 69.6
+        },
+        "total_reflector_attempts": {
+          "mean": 16,
+          "min": 15,
+          "max": 18
+        },
+        "total_reflector_failed_attempts": {
+          "mean": 0,
+          "min": 0,
+          "max": 0
+        },
+        "total_reflector_truncated": {
+          "mean": 1,
+          "min": 0,
+          "max": 2
+        },
+        "total_reflector_parse_errors": {
+          "mean": 0,
+          "min": 0,
+          "max": 0
+        },
+        "total_reflector_recovered": {
+          "mean": 1,
+          "min": 0,
+          "max": 2
+        },
+        "total_evaluator_structured_failures": {
+          "mean": 2.33,
+          "min": 0,
+          "max": 5
+        },
+        "total_infra_failures": {
+          "mean": 0,
+          "min": 0,
+          "max": 0
+        },
+        "infra_failed_modules": {
+          "mean": 0,
+          "min": 0,
+          "max": 0
+        },
+        "total_llm_calls": {
+          "mean": 74,
+          "min": 72,
+          "max": 76
+        },
+        "cost_usd": {
+          "mean": 0.09,
+          "min": 0.08,
+          "max": 0.1
+        },
+        "time_breakdown_s": {
+          "sandbox_create_s": {
+            "mean": 0.73,
+            "min": 0.7,
+            "max": 0.8
+          },
+          "pip_install_s": {
+            "mean": 4.17,
+            "min": 4.0,
+            "max": 4.4
+          },
+          "pytest_s": {
+            "mean": 2.77,
+            "min": 2.5,
+            "max": 3.2
+          },
+          "llm_total_s": {
+            "mean": 55.23,
+            "min": 52.6,
+            "max": 57.8
+          },
+          "llm_critical_s": {
+            "mean": 55.23,
+            "min": 52.6,
+            "max": 57.8
+          },
+          "memory_flush_s": {
+            "mean": 0.0,
+            "min": 0.0,
+            "max": 0.0
+          },
+          "other_s": {
+            "mean": 3.5,
+            "min": 3.1,
+            "max": 3.8
+          }
+        }
+      }
+    },
+    "C": {
+      "n_runs": 3,
+      "model": "deepseek-v4-flash",
+      "git_commits": [
+        "80f9cd9ce7a7394c75603bd5768d45d58e3fff2b"
+      ],
+      "runs": [
+        {
+          "file": "benchmark_results/flash/2026-10-30_C_r1.json",
+          "finished": true,
+          "total": 19,
+          "one_shot_pass_rate": 31.6,
+          "final_pass_rate": 100.0,
+          "avg_retries": 0.79,
+          "avg_evaluator_rejects": 0,
+          "avg_executor_retries": 0.79,
+          "total_evaluator_rejects": 0,
+          "memory_initial": 0,
+          "memory_final": 13,
+          "memory_net_growth": 13,
+          "avg_coverage_pct": 79.2,
+          "avg_wall_time_s": 76.1,
+          "total_infra_failures": 1,
+          "total_reflector_attempts": 15,
+          "total_reflector_failed_attempts": 0,
+          "total_reflector_truncated": 2,
+          "total_reflector_parse_errors": 0,
+          "total_reflector_recovered": 2,
+          "total_evaluator_structured_failures": 4,
+          "infra_failed_modules": 0,
+          "avg_time_breakdown_s": {
+            "sandbox_create_s": 0.7,
+            "pip_install_s": 3.7,
+            "pytest_s": 2.9,
+            "llm_total_s": 64.0,
+            "llm_critical_s": 64.0,
+            "upload_s": 1.4,
+            "infra_backoff_s": 0.3,
+            "memory_flush_s": 2.2,
+            "other_s": 2.6
+          },
+          "total_llm_calls": 86,
+          "total_prompt_tokens": 292659,
+          "total_completion_tokens": 217557,
+          "total_cache_hit_tokens": 119162,
+          "cost_usd": 0.09
+        },
+        {
+          "file": "benchmark_results/flash/2026-10-30_C_r2.json",
+          "finished": true,
+          "total": 19,
+          "one_shot_pass_rate": 31.6,
+          "final_pass_rate": 100.0,
+          "avg_retries": 0.74,
+          "avg_evaluator_rejects": 0,
+          "avg_executor_retries": 0.74,
+          "total_evaluator_rejects": 0,
+          "memory_initial": 0,
+          "memory_final": 14,
+          "memory_net_growth": 14,
+          "avg_coverage_pct": 78.8,
+          "avg_wall_time_s": 61.9,
+          "total_infra_failures": 0,
+          "total_reflector_attempts": 14,
+          "total_reflector_failed_attempts": 0,
+          "total_reflector_truncated": 0,
+          "total_reflector_parse_errors": 0,
+          "total_reflector_recovered": 0,
+          "total_evaluator_structured_failures": 4,
+          "infra_failed_modules": 0,
+          "avg_time_breakdown_s": {
+            "sandbox_create_s": 0.6,
+            "pip_install_s": 3.9,
+            "pytest_s": 2.4,
+            "llm_total_s": 50.2,
+            "llm_critical_s": 50.2,
+            "upload_s": 1.4,
+            "infra_backoff_s": 0.0,
+            "memory_flush_s": 2.5,
+            "other_s": 2.2
+          },
+          "total_llm_calls": 83,
+          "total_prompt_tokens": 286728,
+          "total_completion_tokens": 202958,
+          "total_cache_hit_tokens": 124666,
+          "cost_usd": 0.08
+        },
+        {
+          "file": "benchmark_results/flash/2026-10-30_C_r3.json",
+          "finished": true,
+          "total": 19,
+          "one_shot_pass_rate": 15.8,
+          "final_pass_rate": 100.0,
+          "avg_retries": 1.11,
+          "avg_evaluator_rejects": 0,
+          "avg_executor_retries": 1.11,
+          "total_evaluator_rejects": 0,
+          "memory_initial": 0,
+          "memory_final": 18,
+          "memory_net_growth": 18,
+          "avg_coverage_pct": 76.8,
+          "avg_wall_time_s": 73.8,
+          "total_infra_failures": 0,
+          "total_reflector_attempts": 21,
+          "total_reflector_failed_attempts": 0,
+          "total_reflector_truncated": 1,
+          "total_reflector_parse_errors": 1,
+          "total_reflector_recovered": 2,
+          "total_evaluator_structured_failures": 2,
+          "infra_failed_modules": 0,
+          "avg_time_breakdown_s": {
+            "sandbox_create_s": 0.9,
+            "pip_install_s": 5.0,
+            "pytest_s": 3.0,
+            "llm_total_s": 60.1,
+            "llm_critical_s": 60.1,
+            "upload_s": 2.1,
+            "infra_backoff_s": 0.0,
+            "memory_flush_s": 2.0,
+            "other_s": 2.7
+          },
+          "total_llm_calls": 95,
+          "total_prompt_tokens": 443097,
+          "total_completion_tokens": 229475,
+          "total_cache_hit_tokens": 142075,
+          "cost_usd": 0.11
+        }
+      ],
+      "metrics": {
+        "one_shot_pass_rate": {
+          "mean": 26.33,
+          "min": 15.8,
+          "max": 31.6
+        },
+        "final_pass_rate": {
+          "mean": 100.0,
+          "min": 100.0,
+          "max": 100.0
+        },
+        "avg_retries": {
+          "mean": 0.88,
+          "min": 0.74,
+          "max": 1.11
+        },
+        "avg_coverage_pct": {
+          "mean": 78.27,
+          "min": 76.8,
+          "max": 79.2
+        },
+        "avg_wall_time_s": {
+          "mean": 70.6,
+          "min": 61.9,
+          "max": 76.1
+        },
+        "total_reflector_attempts": {
+          "mean": 16.67,
+          "min": 14,
+          "max": 21
+        },
+        "total_reflector_failed_attempts": {
+          "mean": 0,
+          "min": 0,
+          "max": 0
+        },
+        "total_reflector_truncated": {
+          "mean": 1,
+          "min": 0,
+          "max": 2
+        },
+        "total_reflector_parse_errors": {
+          "mean": 0.33,
+          "min": 0,
+          "max": 1
+        },
+        "total_reflector_recovered": {
+          "mean": 1.33,
+          "min": 0,
+          "max": 2
+        },
+        "total_evaluator_structured_failures": {
+          "mean": 3.33,
+          "min": 2,
+          "max": 4
+        },
+        "total_infra_failures": {
+          "mean": 0.33,
+          "min": 0,
+          "max": 1
+        },
+        "infra_failed_modules": {
+          "mean": 0,
+          "min": 0,
+          "max": 0
+        },
+        "total_llm_calls": {
+          "mean": 88,
+          "min": 83,
+          "max": 95
+        },
+        "cost_usd": {
+          "mean": 0.09,
+          "min": 0.08,
+          "max": 0.11
+        },
+        "time_breakdown_s": {
+          "sandbox_create_s": {
+            "mean": 0.73,
+            "min": 0.6,
+            "max": 0.9
+          },
+          "pip_install_s": {
+            "mean": 4.2,
+            "min": 3.7,
+            "max": 5.0
+          },
+          "pytest_s": {
+            "mean": 2.77,
+            "min": 2.4,
+            "max": 3.0
+          },
+          "llm_total_s": {
+            "mean": 58.1,
+            "min": 50.2,
+            "max": 64.0
+          },
+          "llm_critical_s": {
+            "mean": 58.1,
+            "min": 50.2,
+            "max": 64.0
+          },
+          "memory_flush_s": {
+            "mean": 2.23,
+            "min": 2.0,
+            "max": 2.5
+          },
+          "other_s": {
+            "mean": 2.5,
+            "min": 2.2,
+            "max": 2.7
+          }
+        }
+      }
+    }
+  },
+  "paired_tests": {
+    "A_vs_B": {
+      "run_indices": [
+        1,
+        2,
+        3
+      ],
+      "excluded_non_agent_pairs": 0,
+      "final_pass_mcnemar": {
+        "n_pairs": 57,
+        "x_only": 0,
+        "y_only": 1,
+        "p_value": 1.0
+      },
+      "one_shot_pass_mcnemar": {
+        "n_pairs": 57,
+        "x_only": 9,
+        "y_only": 5,
+        "p_value": 0.424
+      },
+      "retries_sign_test": {
+        "n_modules": 19,
+        "x_higher": 2,
+        "y_higher": 6,
+        "ties": 11,
+        "mean_diff": -0.105,
+        "p_value": 0.2891
+      },
+      "coverage_sign_test": {
+        "n_modules": 19,
+        "x_higher": 2,
+        "y_higher": 2,
+        "ties": 15,
+        "mean_diff": 0.07,
+        "p_value": 1.0
+      }
+    },
+    "C_vs_A": {
+      "run_indices": [
+        1,
+        2,
+        3
+      ],
+      "excluded_non_agent_pairs": 0,
+      "final_pass_mcnemar": {
+        "n_pairs": 57,
+        "x_only": 1,
+        "y_only": 0,
+        "p_value": 1.0
+      },
+      "one_shot_pass_mcnemar": {
+        "n_pairs": 57,
+        "x_only": 5,
+        "y_only": 9,
+        "p_value": 0.424
+      },
+      "retries_sign_test": {
+        "n_modules": 19,
+        "x_higher": 6,
+        "y_higher": 2,
+        "ties": 11,
+        "mean_diff": 0.14,
+        "p_value": 0.2891
+      },
+      "coverage_sign_test": {
+        "n_modules": 19,
+        "x_higher": 1,
+        "y_higher": 2,
+        "ties": 16,
+        "mean_diff": 0.719,
+        "p_value": 1.0
+      }
+    },
+    "C_vs_B": {
+      "run_indices": [
+        1,
+        2,
+        3
+      ],
+      "excluded_non_agent_pairs": 0,
+      "final_pass_mcnemar": {
+        "n_pairs": 57,
+        "x_only": 0,
+        "y_only": 0,
+        "p_value": 1.0
+      },
+      "one_shot_pass_mcnemar": {
+        "n_pairs": 57,
+        "x_only": 6,
+        "y_only": 6,
+        "p_value": 1.0
+      },
+      "retries_sign_test": {
+        "n_modules": 19,
+        "x_higher": 4,
+        "y_higher": 4,
+        "ties": 11,
+        "mean_diff": 0.035,
+        "p_value": 1.0
+      },
+      "coverage_sign_test": {
+        "n_modules": 19,
+        "x_higher": 1,
+        "y_higher": 2,
+        "ties": 16,
+        "mean_diff": 0.789,
+        "p_value": 1.0
+      }
+    }
+  }
+}

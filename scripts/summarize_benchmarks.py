@@ -30,10 +30,14 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 RUN_FILE = re.compile(r"^(?P<date>\d{4}-\d{2}-\d{2})_(?P<config>[A-Z])_r(?P<run>\d+)\.json$")
 NON_AGENT_STATUSES = {"infra_failed", "error"}
 
-# USD per 1M tokens. Assumed list prices for deepseek-v4-pro (peak), taken from
-# DeepSeek's pricing page as reported on 2026-10-17 — verify against the
-# console bill; the token counts themselves are measured.
-DEFAULT_PRICES = {"input_cache_miss": 1.32, "input_cache_hit": 0.044, "output": 3.96}
+# USD per 1M tokens, by model. ASSUMED list prices (third-party reports, not
+# verified against the console bill) — the token counts themselves are measured.
+#   pro:   $1.32 / $3.96 peak, cache hit $0.044 (DeepSeek pricing page as reported 2026-10-17)
+#   flash: $0.14 / $0.28 (aggregator listings); cache-hit price unknown, assumed 0.1× input
+MODEL_PRICES = {
+    "deepseek-v4-pro": {"input_cache_miss": 1.32, "input_cache_hit": 0.044, "output": 3.96},
+    "deepseek-v4-flash": {"input_cache_miss": 0.14, "input_cache_hit": 0.014, "output": 0.28},
+}
 
 METRICS = [
     ("one_shot_pass_rate", "一次通过率 %"),
@@ -105,7 +109,7 @@ def load_runs(results_dir: Path) -> dict[str, list[dict]]:
         data = json.loads(path.read_text(encoding="utf-8"))
         if "metadata" not in data:
             continue
-        data["_file"] = path.relative_to(REPO_ROOT).as_posix()
+        data["_file"] = path.resolve().relative_to(REPO_ROOT).as_posix()
         data["_run_index"] = int(m["run"])
         runs[m["config"]].append(data)
     return runs
@@ -139,7 +143,7 @@ def aggregate_config(runs: list[dict], prices: dict) -> dict:
     per_run = []
     for run in sorted(runs, key=lambda r: r["_run_index"]):
         s = dict(run["summary"])
-        s["cost_usd"] = round(run_cost(run["results"], prices), 2)
+        s["cost_usd"] = round(run_cost(run["results"], prices[run["metadata"]["llm"]["model"]]), 2)
         per_run.append({"file": run["_file"], "finished": run["metadata"].get("finished_at") is not None, **s})
     agg = {key: _stats([r.get(key) for r in per_run]) for key, _ in METRICS}
     agg["time_breakdown_s"] = {
@@ -225,7 +229,9 @@ def render_markdown(report: dict) -> str:
     for c in configs:
         for run in report["configs"][c]["runs"]:
             lines.append(f"- {c}: `{run['file']}`" + ("" if run["finished"] else "（未完成）"))
-    lines += ["", f"费用按假设单价估算：{report['prices_usd_per_1m']}（token 数为实测）。"]
+    used = {report["configs"][c]["model"] for c in configs}
+    prices = {m: p for m, p in report["prices_usd_per_1m"].items() if m in used}
+    lines += ["", f"费用按假设单价（USD / 百万 token）估算：{prices}；token 数为实测，单价未经账单核对。"]
     return "\n".join(lines) + "\n"
 
 
@@ -240,8 +246,8 @@ def main() -> None:
     if args.configs:
         runs = {c: r for c, r in runs.items() if c in args.configs}
     report = {
-        "prices_usd_per_1m": DEFAULT_PRICES,
-        "configs": {c: aggregate_config(r, DEFAULT_PRICES) for c, r in sorted(runs.items())},
+        "prices_usd_per_1m": MODEL_PRICES,
+        "configs": {c: aggregate_config(r, MODEL_PRICES) for c, r in sorted(runs.items())},
         "paired_tests": {},
     }
     for x, y in [("A", "B"), ("C", "A"), ("C", "B")]:
