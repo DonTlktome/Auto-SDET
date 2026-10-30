@@ -18,7 +18,9 @@ from rich.console import Console
 
 from pathlib import Path
 
+from auto_sdet.config import get_settings
 from auto_sdet.models.schemas import AgentState, ReflectionResult
+from auto_sdet.tools.error_signature import extract_error_signature
 from auto_sdet.tools.llm_factory import get_llm
 from auto_sdet.tools.memory_store import build_trajectory, get_memory_store
 from auto_sdet.tools.run_trace import clip, trace_event
@@ -44,14 +46,18 @@ def reflector_node(state: AgentState) -> dict:
     error_history = state.get("error_history", [])
 
     # ── Step 2: Reflexion Memory — retrieve similar past cases ──────
-    # Use a quick error signature (without classification yet — we don't
-    # know it until the LLM classifies). The signature here is just the
-    # first ~200 chars of the error, which is usually informative enough
-    # for similarity search.
+    # legacy:    query = first 300 chars of the output + filename. In
+    #            practice that is mostly the pytest session header.
+    # signature: query = normalized error signature extracted from the
+    #            output — the same representation the documents are stored in.
     memory = get_memory_store()
+    signature_variant = get_settings().memory_variant == "signature"
     target_file = Path(state["source_path"]).name
     module_id = state.get("module_id") or target_file
-    query_text = f"{latest_error[:300]} [in {target_file}]"
+    if signature_variant:
+        query_text = extract_error_signature(latest_error)
+    else:
+        query_text = f"{latest_error[:300]} [in {target_file}]"
     similar_cases, candidates = (
         memory.retrieve_with_candidates(query_text, k=3) if memory else ([], [])
     )
@@ -198,6 +204,9 @@ def reflector_node(state: AgentState) -> dict:
     # This is the Memory-R1 (Lu 2025) upgrade over Reflexion's append-only
     # model — see graph/nodes/memory_manager.py for rationale.
     # With memory disabled nothing is emitted, so MemoryManager is a no-op.
+    # signature variant: the document is the same normalized signature used as
+    # the query (so the root_cause is never embedded or truncated), and the
+    # outcome stays "pending" until the Executor has re-run pytest.
     pending_trajectory = None
     if memory is not None:
         try:
@@ -207,9 +216,11 @@ def reflector_node(state: AgentState) -> dict:
                 fix_strategy=result.fix_strategy,
                 fix_summary=_extract_fix_summary(diff),
                 target_file=target_file,
-                outcome="fix_applied",
+                outcome="pending" if signature_variant else "fix_applied",
                 source_module=module_id,
             )
+            if signature_variant:
+                pending_trajectory = pending_trajectory.model_copy(update={"error_signature": query_text})
         except Exception as e:
             # Trajectory build failure is non-fatal — Memory Manager will
             # see pending_trajectory=None and skip its CRUD logic.

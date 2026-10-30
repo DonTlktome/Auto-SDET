@@ -8,6 +8,7 @@ import logging
 from rich.console import Console
 from rich.markup import escape
 
+from auto_sdet.graph.nodes.memory_manager import commit_verified_trajectory
 from auto_sdet.models.schemas import AgentState
 from auto_sdet.tools.e2b_sandbox import SandboxExecutor
 from auto_sdet.tools.run_trace import clip, trace_event
@@ -72,6 +73,14 @@ def executor_node(state: AgentState) -> dict:
         "infra_failures": state.get("infra_failures", 0) + result.infra_failures,
         "status": "executing",
     }
+
+    # signature memory variant: a held trajectory gets its real outcome now.
+    # Infra failures say nothing about the fix, so that trajectory is dropped.
+    pending = state.get("pending_trajectory")
+    if pending is not None and pending.outcome == "pending":
+        if not result.infra_failure:
+            commit_verified_trajectory(pending, passed=result.exit_code == 0)
+        update["pending_trajectory"] = None
 
     if result.infra_failure:
         # Never feed a sandbox error to the Reflector — router ends the run.
