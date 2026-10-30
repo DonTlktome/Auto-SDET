@@ -1,0 +1,1385 @@
+{
+  "metadata": {
+    "run_name": "2026-10-30_B_r1",
+    "config": "B",
+    "config_description": "Same as A with episodic memory OFF (no retrieval, no trajectory writes)",
+    "run_index": 1,
+    "git_commit": "d165eb742947aa66c8d91a3422a0d66a24214490",
+    "git_dirty_files": [],
+    "llm": {
+      "provider": "deepseek",
+      "model": "deepseek-v4-pro",
+      "temperature": 0.0,
+      "max_tokens": 16384,
+      "thinking": {
+        "generator": "disabled",
+        "evaluator": "enabled",
+        "reflector": "enabled",
+        "memory_manager": "enabled"
+      }
+    },
+    "langsmith_tracing": true,
+    "memory": {
+      "enabled": false,
+      "variant": null,
+      "initial_state": null,
+      "dir": null
+    },
+    "ruff_enabled": true,
+    "evaluator": {
+      "pass_threshold": 0.75,
+      "warn_threshold": 0.5,
+      "reject_cap": 2
+    },
+    "max_retries": 3,
+    "sandbox": {
+      "pytest_timeout_s": 60,
+      "sandbox_lifetime_s": 240,
+      "infra_max_attempts": 3,
+      "base_packages": [
+        "pytest",
+        "pytest-cov"
+      ],
+      "template": "e2b code-interpreter default"
+    },
+    "module_order": [
+      "maths/prime_check.py",
+      "maths/fibonacci.py",
+      "maths/factorial.py",
+      "maths/gcd_of_n_numbers.py",
+      "maths/sigmoid.py",
+      "sorts/bubble_sort.py",
+      "sorts/quick_sort.py",
+      "sorts/merge_sort.py",
+      "sorts/insertion_sort.py",
+      "searches/binary_search.py",
+      "searches/linear_search.py",
+      "strings/palindrome.py",
+      "strings/reverse_words.py",
+      "strings/word_occurrence.py",
+      "data_structures/stacks/stack.py",
+      "data_structures/queues/queue_by_list.py",
+      "data_structures/linked_list/singly_linked_list.py",
+      "conversions/decimal_to_binary.py",
+      "dynamic_programming/fibonacci.py"
+    ],
+    "bench_dir": "D:/Documents/Study/Projects/algorithms-bench",
+    "bench_commit": "791deb40f93c65a020f2c75e41b55c97ad566cc0",
+    "python": "3.12.11",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "packages": {
+      "langgraph": "1.1.6",
+      "langchain-core": "1.2.28",
+      "langchain-deepseek": "1.0.1",
+      "chromadb": "1.5.9",
+      "e2b": "2.20.0",
+      "e2b-code-interpreter": "2.6.0",
+      "ruff": "0.15.12"
+    },
+    "note": "paired: ran concurrently with A_r1",
+    "started_at": "2026-10-30T10:29:47+00:00",
+    "finished_at": "2026-10-30T11:15:54+00:00"
+  },
+  "summary": {
+    "total": 19,
+    "one_shot_pass_rate": 42.1,
+    "final_pass_rate": 94.7,
+    "avg_retries": 0.68,
+    "avg_evaluator_rejects": 0,
+    "avg_executor_retries": 0.68,
+    "total_evaluator_rejects": 0,
+    "memory_initial": null,
+    "memory_final": null,
+    "memory_net_growth": null,
+    "avg_coverage_pct": 74.4,
+    "avg_wall_time_s": 145.6,
+    "total_infra_failures": 0,
+    "infra_failed_modules": 0,
+    "avg_time_breakdown_s": {
+      "sandbox_create_s": 0.6,
+      "pip_install_s": 3.2,
+      "pytest_s": 1.9,
+      "llm_total_s": 136.7,
+      "llm_critical_s": 136.7,
+      "upload_s": 1.3,
+      "infra_backoff_s": 0.0,
+      "memory_flush_s": 0.0,
+      "other_s": 3.1
+    },
+    "total_llm_calls": 70,
+    "total_prompt_tokens": 200616,
+    "total_completion_tokens": 226529,
+    "total_cache_hit_tokens": 87680
+  },
+  "results": [
+    {
+      "module": "maths/prime_check.py",
+      "file": "prime_check.py",
+      "status": "done",
+      "retry_count": 1,
+      "evaluator_rejects": 0,
+      "executor_retries": 1,
+      "exit_code": 0,
+      "coverage_pct": 47,
+      "wall_time_s": 290.5,
+      "memory_size_before": null,
+      "memory_size_after": null,
+      "memory_delta": null,
+      "infra_failures": 0,
+      "time_breakdown": {
+        "sandbox_create_s": 1.0,
+        "pip_install_s": 3.7,
+        "pytest_s": 2.8,
+        "llm_total_s": 277.0,
+        "llm_critical_s": 277.0,
+        "upload_s": 2.2,
+        "infra_backoff_s": 0.0,
+        "executions": 2,
+        "memory_flush_s": 0.0,
+        "other_s": 6.0
+      },
+      "memory_unflushed_ops": 0,
+      "llm_usage": {
+        "calls": 4,
+        "errors": 0,
+        "time_s": 277.0,
+        "prompt_tokens": 14130,
+        "completion_tokens": 26354,
+        "reasoning_tokens": 23027,
+        "cache_hit_tokens": 3200,
+        "cache_miss_tokens": 10930,
+        "by_node": {
+          "evaluator": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 106.2,
+            "prompt_tokens": 3138,
+            "completion_tokens": 8759,
+            "reasoning_tokens": 8303,
+            "cache_hit_tokens": 0,
+            "cache_miss_tokens": 3138
+          },
+          "generator": {
+            "calls": 2,
+            "errors": 0,
+            "time_s": 12.9,
+            "prompt_tokens": 2655,
+            "completion_tokens": 1336,
+            "reasoning_tokens": 0,
+            "cache_hit_tokens": 2560,
+            "cache_miss_tokens": 95
+          },
+          "reflector": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 157.9,
+            "prompt_tokens": 8337,
+            "completion_tokens": 16259,
+            "reasoning_tokens": 14724,
+            "cache_hit_tokens": 640,
+            "cache_miss_tokens": 7697
+          }
+        }
+      },
+      "error": null
+    },
+    {
+      "module": "maths/fibonacci.py",
+      "file": "fibonacci.py",
+      "status": "done",
+      "retry_count": 0,
+      "evaluator_rejects": 0,
+      "executor_retries": 0,
+      "exit_code": 0,
+      "coverage_pct": 87,
+      "wall_time_s": 88.4,
+      "memory_size_before": null,
+      "memory_size_after": null,
+      "memory_delta": null,
+      "infra_failures": 0,
+      "time_breakdown": {
+        "sandbox_create_s": 0.8,
+        "pip_install_s": 1.9,
+        "pytest_s": 1.2,
+        "llm_total_s": 82.7,
+        "llm_critical_s": 82.7,
+        "upload_s": 0.4,
+        "infra_backoff_s": 0.0,
+        "executions": 1,
+        "memory_flush_s": 0.0,
+        "other_s": 1.8
+      },
+      "memory_unflushed_ops": 0,
+      "llm_usage": {
+        "calls": 3,
+        "errors": 0,
+        "time_s": 82.7,
+        "prompt_tokens": 11159,
+        "completion_tokens": 7043,
+        "reasoning_tokens": 4575,
+        "cache_hit_tokens": 5760,
+        "cache_miss_tokens": 5399,
+        "by_node": {
+          "evaluator": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 65.2,
+            "prompt_tokens": 6314,
+            "completion_tokens": 4750,
+            "reasoning_tokens": 4575,
+            "cache_hit_tokens": 1024,
+            "cache_miss_tokens": 5290
+          },
+          "generator": {
+            "calls": 2,
+            "errors": 0,
+            "time_s": 17.5,
+            "prompt_tokens": 4845,
+            "completion_tokens": 2293,
+            "reasoning_tokens": 0,
+            "cache_hit_tokens": 4736,
+            "cache_miss_tokens": 109
+          }
+        }
+      },
+      "error": null
+    },
+    {
+      "module": "maths/factorial.py",
+      "file": "factorial.py",
+      "status": "done",
+      "retry_count": 1,
+      "evaluator_rejects": 0,
+      "executor_retries": 1,
+      "exit_code": 0,
+      "coverage_pct": 80,
+      "wall_time_s": 229.6,
+      "memory_size_before": null,
+      "memory_size_after": null,
+      "memory_delta": null,
+      "infra_failures": 0,
+      "time_breakdown": {
+        "sandbox_create_s": 0.6,
+        "pip_install_s": 5.4,
+        "pytest_s": 2.9,
+        "llm_total_s": 217.6,
+        "llm_critical_s": 217.6,
+        "upload_s": 1.4,
+        "infra_backoff_s": 0.0,
+        "executions": 2,
+        "memory_flush_s": 0.0,
+        "other_s": 3.1
+      },
+      "memory_unflushed_ops": 0,
+      "llm_usage": {
+        "calls": 4,
+        "errors": 0,
+        "time_s": 217.6,
+        "prompt_tokens": 12417,
+        "completion_tokens": 20361,
+        "reasoning_tokens": 17163,
+        "cache_hit_tokens": 3968,
+        "cache_miss_tokens": 8449,
+        "by_node": {
+          "evaluator": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 91.4,
+            "prompt_tokens": 2884,
+            "completion_tokens": 7323,
+            "reasoning_tokens": 6699,
+            "cache_hit_tokens": 1024,
+            "cache_miss_tokens": 1860
+          },
+          "generator": {
+            "calls": 2,
+            "errors": 0,
+            "time_s": 10.4,
+            "prompt_tokens": 2514,
+            "completion_tokens": 1191,
+            "reasoning_tokens": 0,
+            "cache_hit_tokens": 2304,
+            "cache_miss_tokens": 210
+          },
+          "reflector": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 115.8,
+            "prompt_tokens": 7019,
+            "completion_tokens": 11847,
+            "reasoning_tokens": 10464,
+            "cache_hit_tokens": 640,
+            "cache_miss_tokens": 6379
+          }
+        }
+      },
+      "error": null
+    },
+    {
+      "module": "maths/gcd_of_n_numbers.py",
+      "file": "gcd_of_n_numbers.py",
+      "status": "done",
+      "retry_count": 0,
+      "evaluator_rejects": 0,
+      "executor_retries": 0,
+      "exit_code": 0,
+      "coverage_pct": 97,
+      "wall_time_s": 71.6,
+      "memory_size_before": null,
+      "memory_size_after": null,
+      "memory_delta": null,
+      "infra_failures": 0,
+      "time_breakdown": {
+        "sandbox_create_s": 0.3,
+        "pip_install_s": 1.9,
+        "pytest_s": 1.7,
+        "llm_total_s": 65.3,
+        "llm_critical_s": 65.3,
+        "upload_s": 1.0,
+        "infra_backoff_s": 0.0,
+        "executions": 1,
+        "memory_flush_s": 0.0,
+        "other_s": 2.4
+      },
+      "memory_unflushed_ops": 0,
+      "llm_usage": {
+        "calls": 3,
+        "errors": 0,
+        "time_s": 65.3,
+        "prompt_tokens": 6225,
+        "completion_tokens": 5352,
+        "reasoning_tokens": 4000,
+        "cache_hit_tokens": 3840,
+        "cache_miss_tokens": 2385,
+        "by_node": {
+          "evaluator": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 56.0,
+            "prompt_tokens": 3199,
+            "completion_tokens": 4342,
+            "reasoning_tokens": 4000,
+            "cache_hit_tokens": 1024,
+            "cache_miss_tokens": 2175
+          },
+          "generator": {
+            "calls": 2,
+            "errors": 0,
+            "time_s": 9.3,
+            "prompt_tokens": 3026,
+            "completion_tokens": 1010,
+            "reasoning_tokens": 0,
+            "cache_hit_tokens": 2816,
+            "cache_miss_tokens": 210
+          }
+        }
+      },
+      "error": null
+    },
+    {
+      "module": "maths/sigmoid.py",
+      "file": "sigmoid.py",
+      "status": "done",
+      "retry_count": 1,
+      "evaluator_rejects": 0,
+      "executor_retries": 1,
+      "exit_code": 0,
+      "coverage_pct": 67,
+      "wall_time_s": 84.4,
+      "memory_size_before": null,
+      "memory_size_after": null,
+      "memory_delta": null,
+      "infra_failures": 0,
+      "time_breakdown": {
+        "sandbox_create_s": 1.1,
+        "pip_install_s": 3.8,
+        "pytest_s": 3.2,
+        "llm_total_s": 71.7,
+        "llm_critical_s": 71.7,
+        "upload_s": 2.7,
+        "infra_backoff_s": 0.0,
+        "executions": 2,
+        "memory_flush_s": 0.0,
+        "other_s": 4.7
+      },
+      "memory_unflushed_ops": 0,
+      "llm_usage": {
+        "calls": 4,
+        "errors": 0,
+        "time_s": 71.7,
+        "prompt_tokens": 11189,
+        "completion_tokens": 7324,
+        "reasoning_tokens": 5178,
+        "cache_hit_tokens": 3840,
+        "cache_miss_tokens": 7349,
+        "by_node": {
+          "evaluator": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 15.6,
+            "prompt_tokens": 2368,
+            "completion_tokens": 1102,
+            "reasoning_tokens": 919,
+            "cache_hit_tokens": 1024,
+            "cache_miss_tokens": 1344
+          },
+          "generator": {
+            "calls": 2,
+            "errors": 0,
+            "time_s": 9.1,
+            "prompt_tokens": 2302,
+            "completion_tokens": 924,
+            "reasoning_tokens": 0,
+            "cache_hit_tokens": 2176,
+            "cache_miss_tokens": 126
+          },
+          "reflector": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 47.0,
+            "prompt_tokens": 6519,
+            "completion_tokens": 5298,
+            "reasoning_tokens": 4259,
+            "cache_hit_tokens": 640,
+            "cache_miss_tokens": 5879
+          }
+        }
+      },
+      "error": null
+    },
+    {
+      "module": "sorts/bubble_sort.py",
+      "file": "bubble_sort.py",
+      "status": "done",
+      "retry_count": 0,
+      "evaluator_rejects": 0,
+      "executor_retries": 0,
+      "exit_code": 0,
+      "coverage_pct": 58,
+      "wall_time_s": 62.9,
+      "memory_size_before": null,
+      "memory_size_after": null,
+      "memory_delta": null,
+      "infra_failures": 0,
+      "time_breakdown": {
+        "sandbox_create_s": 0.3,
+        "pip_install_s": 1.6,
+        "pytest_s": 0.9,
+        "llm_total_s": 57.2,
+        "llm_critical_s": 57.2,
+        "upload_s": 1.0,
+        "infra_backoff_s": 0.0,
+        "executions": 1,
+        "memory_flush_s": 0.0,
+        "other_s": 3.0
+      },
+      "memory_unflushed_ops": 0,
+      "llm_usage": {
+        "calls": 3,
+        "errors": 0,
+        "time_s": 57.2,
+        "prompt_tokens": 8272,
+        "completion_tokens": 4854,
+        "reasoning_tokens": 2945,
+        "cache_hit_tokens": 4608,
+        "cache_miss_tokens": 3664,
+        "by_node": {
+          "evaluator": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 45.1,
+            "prompt_tokens": 4479,
+            "completion_tokens": 3342,
+            "reasoning_tokens": 2945,
+            "cache_hit_tokens": 1024,
+            "cache_miss_tokens": 3455
+          },
+          "generator": {
+            "calls": 2,
+            "errors": 0,
+            "time_s": 12.2,
+            "prompt_tokens": 3793,
+            "completion_tokens": 1512,
+            "reasoning_tokens": 0,
+            "cache_hit_tokens": 3584,
+            "cache_miss_tokens": 209
+          }
+        }
+      },
+      "error": null
+    },
+    {
+      "module": "sorts/quick_sort.py",
+      "file": "quick_sort.py",
+      "status": "done",
+      "retry_count": 1,
+      "evaluator_rejects": 0,
+      "executor_retries": 1,
+      "exit_code": 0,
+      "coverage_pct": 79,
+      "wall_time_s": 231.7,
+      "memory_size_before": null,
+      "memory_size_after": null,
+      "memory_delta": null,
+      "infra_failures": 0,
+      "time_breakdown": {
+        "sandbox_create_s": 0.6,
+        "pip_install_s": 4.2,
+        "pytest_s": 2.6,
+        "llm_total_s": 220.2,
+        "llm_critical_s": 220.2,
+        "upload_s": 1.9,
+        "infra_backoff_s": 0.0,
+        "executions": 2,
+        "memory_flush_s": 0.0,
+        "other_s": 4.1
+      },
+      "memory_unflushed_ops": 0,
+      "llm_usage": {
+        "calls": 4,
+        "errors": 0,
+        "time_s": 220.2,
+        "prompt_tokens": 8047,
+        "completion_tokens": 18097,
+        "reasoning_tokens": 16397,
+        "cache_hit_tokens": 3968,
+        "cache_miss_tokens": 4079,
+        "by_node": {
+          "evaluator": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 85.8,
+            "prompt_tokens": 2298,
+            "completion_tokens": 6793,
+            "reasoning_tokens": 6484,
+            "cache_hit_tokens": 1024,
+            "cache_miss_tokens": 1274
+          },
+          "generator": {
+            "calls": 2,
+            "errors": 0,
+            "time_s": 7.0,
+            "prompt_tokens": 2454,
+            "completion_tokens": 645,
+            "reasoning_tokens": 0,
+            "cache_hit_tokens": 2304,
+            "cache_miss_tokens": 150
+          },
+          "reflector": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 127.3,
+            "prompt_tokens": 3295,
+            "completion_tokens": 10659,
+            "reasoning_tokens": 9913,
+            "cache_hit_tokens": 640,
+            "cache_miss_tokens": 2655
+          }
+        }
+      },
+      "error": null
+    },
+    {
+      "module": "sorts/merge_sort.py",
+      "file": "merge_sort.py",
+      "status": "done",
+      "retry_count": 1,
+      "evaluator_rejects": 0,
+      "executor_retries": 1,
+      "exit_code": 0,
+      "coverage_pct": 100,
+      "wall_time_s": 237.6,
+      "memory_size_before": null,
+      "memory_size_after": null,
+      "memory_delta": null,
+      "infra_failures": 0,
+      "time_breakdown": {
+        "sandbox_create_s": 0.6,
+        "pip_install_s": 4.7,
+        "pytest_s": 2.0,
+        "llm_total_s": 227.0,
+        "llm_critical_s": 227.0,
+        "upload_s": 1.4,
+        "infra_backoff_s": 0.0,
+        "executions": 2,
+        "memory_flush_s": 0.0,
+        "other_s": 3.3
+      },
+      "memory_unflushed_ops": 0,
+      "llm_usage": {
+        "calls": 4,
+        "errors": 0,
+        "time_s": 227.0,
+        "prompt_tokens": 9553,
+        "completion_tokens": 20843,
+        "reasoning_tokens": 18411,
+        "cache_hit_tokens": 3968,
+        "cache_miss_tokens": 5585,
+        "by_node": {
+          "evaluator": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 84.8,
+            "prompt_tokens": 2638,
+            "completion_tokens": 6473,
+            "reasoning_tokens": 6080,
+            "cache_hit_tokens": 1024,
+            "cache_miss_tokens": 1614
+          },
+          "generator": {
+            "calls": 2,
+            "errors": 0,
+            "time_s": 9.3,
+            "prompt_tokens": 2478,
+            "completion_tokens": 979,
+            "reasoning_tokens": 0,
+            "cache_hit_tokens": 2304,
+            "cache_miss_tokens": 174
+          },
+          "reflector": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 132.9,
+            "prompt_tokens": 4437,
+            "completion_tokens": 13391,
+            "reasoning_tokens": 12331,
+            "cache_hit_tokens": 640,
+            "cache_miss_tokens": 3797
+          }
+        }
+      },
+      "error": null
+    },
+    {
+      "module": "sorts/insertion_sort.py",
+      "file": "insertion_sort.py",
+      "status": "done",
+      "retry_count": 0,
+      "evaluator_rejects": 0,
+      "executor_retries": 0,
+      "exit_code": 0,
+      "coverage_pct": 72,
+      "wall_time_s": 82.6,
+      "memory_size_before": null,
+      "memory_size_after": null,
+      "memory_delta": null,
+      "infra_failures": 0,
+      "time_breakdown": {
+        "sandbox_create_s": 0.3,
+        "pip_install_s": 2.4,
+        "pytest_s": 1.0,
+        "llm_total_s": 77.0,
+        "llm_critical_s": 77.0,
+        "upload_s": 1.0,
+        "infra_backoff_s": 0.0,
+        "executions": 1,
+        "memory_flush_s": 0.0,
+        "other_s": 1.9
+      },
+      "memory_unflushed_ops": 0,
+      "llm_usage": {
+        "calls": 3,
+        "errors": 0,
+        "time_s": 77.0,
+        "prompt_tokens": 5503,
+        "completion_tokens": 6189,
+        "reasoning_tokens": 4651,
+        "cache_hit_tokens": 3456,
+        "cache_miss_tokens": 2047,
+        "by_node": {
+          "evaluator": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 65.6,
+            "prompt_tokens": 2907,
+            "completion_tokens": 5051,
+            "reasoning_tokens": 4651,
+            "cache_hit_tokens": 1024,
+            "cache_miss_tokens": 1883
+          },
+          "generator": {
+            "calls": 2,
+            "errors": 0,
+            "time_s": 11.3,
+            "prompt_tokens": 2596,
+            "completion_tokens": 1138,
+            "reasoning_tokens": 0,
+            "cache_hit_tokens": 2432,
+            "cache_miss_tokens": 164
+          }
+        }
+      },
+      "error": null
+    },
+    {
+      "module": "searches/binary_search.py",
+      "file": "binary_search.py",
+      "status": "failed",
+      "retry_count": 3,
+      "evaluator_rejects": 0,
+      "executor_retries": 3,
+      "exit_code": 1,
+      "coverage_pct": 84,
+      "wall_time_s": 271.8,
+      "memory_size_before": null,
+      "memory_size_after": null,
+      "memory_delta": null,
+      "infra_failures": 0,
+      "time_breakdown": {
+        "sandbox_create_s": 0.6,
+        "pip_install_s": 3.8,
+        "pytest_s": 2.2,
+        "llm_total_s": 261.9,
+        "llm_critical_s": 261.9,
+        "upload_s": 1.0,
+        "infra_backoff_s": 0.0,
+        "executions": 2,
+        "memory_flush_s": 0.0,
+        "other_s": 3.4
+      },
+      "memory_unflushed_ops": 0,
+      "llm_usage": {
+        "calls": 4,
+        "errors": 1,
+        "time_s": 261.9,
+        "prompt_tokens": 15060,
+        "completion_tokens": 10733,
+        "reasoning_tokens": 7098,
+        "cache_hit_tokens": 7168,
+        "cache_miss_tokens": 7892,
+        "by_node": {
+          "evaluator": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 86.6,
+            "prompt_tokens": 8822,
+            "completion_tokens": 7316,
+            "reasoning_tokens": 7098,
+            "cache_hit_tokens": 1024,
+            "cache_miss_tokens": 7798
+          },
+          "generator": {
+            "calls": 2,
+            "errors": 0,
+            "time_s": 22.1,
+            "prompt_tokens": 6238,
+            "completion_tokens": 3417,
+            "reasoning_tokens": 0,
+            "cache_hit_tokens": 6144,
+            "cache_miss_tokens": 94
+          },
+          "reflector": {
+            "calls": 1,
+            "errors": 1,
+            "time_s": 153.2,
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "reasoning_tokens": 0,
+            "cache_hit_tokens": 0,
+            "cache_miss_tokens": 0
+          }
+        }
+      },
+      "error": null
+    },
+    {
+      "module": "searches/linear_search.py",
+      "file": "linear_search.py",
+      "status": "done",
+      "retry_count": 1,
+      "evaluator_rejects": 0,
+      "executor_retries": 1,
+      "exit_code": 0,
+      "coverage_pct": 70,
+      "wall_time_s": 204.4,
+      "memory_size_before": null,
+      "memory_size_after": null,
+      "memory_delta": null,
+      "infra_failures": 0,
+      "time_breakdown": {
+        "sandbox_create_s": 0.5,
+        "pip_install_s": 3.5,
+        "pytest_s": 2.0,
+        "llm_total_s": 194.0,
+        "llm_critical_s": 194.0,
+        "upload_s": 1.6,
+        "infra_backoff_s": 0.0,
+        "executions": 2,
+        "memory_flush_s": 0.0,
+        "other_s": 4.4
+      },
+      "memory_unflushed_ops": 0,
+      "llm_usage": {
+        "calls": 4,
+        "errors": 0,
+        "time_s": 194.0,
+        "prompt_tokens": 11464,
+        "completion_tokens": 18593,
+        "reasoning_tokens": 15429,
+        "cache_hit_tokens": 4224,
+        "cache_miss_tokens": 7240,
+        "by_node": {
+          "evaluator": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 80.0,
+            "prompt_tokens": 3205,
+            "completion_tokens": 6277,
+            "reasoning_tokens": 5839,
+            "cache_hit_tokens": 1024,
+            "cache_miss_tokens": 2181
+          },
+          "generator": {
+            "calls": 2,
+            "errors": 0,
+            "time_s": 11.7,
+            "prompt_tokens": 2743,
+            "completion_tokens": 1279,
+            "reasoning_tokens": 0,
+            "cache_hit_tokens": 2560,
+            "cache_miss_tokens": 183
+          },
+          "reflector": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 102.2,
+            "prompt_tokens": 5516,
+            "completion_tokens": 11037,
+            "reasoning_tokens": 9590,
+            "cache_hit_tokens": 640,
+            "cache_miss_tokens": 4876
+          }
+        }
+      },
+      "error": null
+    },
+    {
+      "module": "strings/palindrome.py",
+      "file": "palindrome.py",
+      "status": "done",
+      "retry_count": 0,
+      "evaluator_rejects": 0,
+      "executor_retries": 0,
+      "exit_code": 0,
+      "coverage_pct": 65,
+      "wall_time_s": 55.9,
+      "memory_size_before": null,
+      "memory_size_after": null,
+      "memory_delta": null,
+      "infra_failures": 0,
+      "time_breakdown": {
+        "sandbox_create_s": 0.3,
+        "pip_install_s": 1.5,
+        "pytest_s": 0.9,
+        "llm_total_s": 51.4,
+        "llm_critical_s": 51.4,
+        "upload_s": 0.5,
+        "infra_backoff_s": 0.0,
+        "executions": 1,
+        "memory_flush_s": 0.0,
+        "other_s": 1.8
+      },
+      "memory_unflushed_ops": 0,
+      "llm_usage": {
+        "calls": 3,
+        "errors": 0,
+        "time_s": 51.4,
+        "prompt_tokens": 6720,
+        "completion_tokens": 3695,
+        "reasoning_tokens": 1634,
+        "cache_hit_tokens": 3840,
+        "cache_miss_tokens": 2880,
+        "by_node": {
+          "evaluator": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 31.2,
+            "prompt_tokens": 3803,
+            "completion_tokens": 1993,
+            "reasoning_tokens": 1634,
+            "cache_hit_tokens": 1024,
+            "cache_miss_tokens": 2779
+          },
+          "generator": {
+            "calls": 2,
+            "errors": 0,
+            "time_s": 20.3,
+            "prompt_tokens": 2917,
+            "completion_tokens": 1702,
+            "reasoning_tokens": 0,
+            "cache_hit_tokens": 2816,
+            "cache_miss_tokens": 101
+          }
+        }
+      },
+      "error": null
+    },
+    {
+      "module": "strings/reverse_words.py",
+      "file": "reverse_words.py",
+      "status": "done",
+      "retry_count": 0,
+      "evaluator_rejects": 0,
+      "executor_retries": 0,
+      "exit_code": 0,
+      "coverage_pct": 60,
+      "wall_time_s": 41.3,
+      "memory_size_before": null,
+      "memory_size_after": null,
+      "memory_delta": null,
+      "infra_failures": 0,
+      "time_breakdown": {
+        "sandbox_create_s": 0.9,
+        "pip_install_s": 1.7,
+        "pytest_s": 1.0,
+        "llm_total_s": 34.9,
+        "llm_critical_s": 34.9,
+        "upload_s": 1.6,
+        "infra_backoff_s": 0.0,
+        "executions": 1,
+        "memory_flush_s": 0.0,
+        "other_s": 2.9
+      },
+      "memory_unflushed_ops": 0,
+      "llm_usage": {
+        "calls": 3,
+        "errors": 0,
+        "time_s": 34.9,
+        "prompt_tokens": 4092,
+        "completion_tokens": 2093,
+        "reasoning_tokens": 1304,
+        "cache_hit_tokens": 3072,
+        "cache_miss_tokens": 1020,
+        "by_node": {
+          "evaluator": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 21.9,
+            "prompt_tokens": 1954,
+            "completion_tokens": 1478,
+            "reasoning_tokens": 1304,
+            "cache_hit_tokens": 1024,
+            "cache_miss_tokens": 930
+          },
+          "generator": {
+            "calls": 2,
+            "errors": 0,
+            "time_s": 13.1,
+            "prompt_tokens": 2138,
+            "completion_tokens": 615,
+            "reasoning_tokens": 0,
+            "cache_hit_tokens": 2048,
+            "cache_miss_tokens": 90
+          }
+        }
+      },
+      "error": null
+    },
+    {
+      "module": "strings/word_occurrence.py",
+      "file": "word_occurrence.py",
+      "status": "done",
+      "retry_count": 0,
+      "evaluator_rejects": 0,
+      "executor_retries": 0,
+      "exit_code": 0,
+      "coverage_pct": 78,
+      "wall_time_s": 37.5,
+      "memory_size_before": null,
+      "memory_size_after": null,
+      "memory_delta": null,
+      "infra_failures": 0,
+      "time_breakdown": {
+        "sandbox_create_s": 0.3,
+        "pip_install_s": 1.8,
+        "pytest_s": 1.0,
+        "llm_total_s": 31.5,
+        "llm_critical_s": 31.5,
+        "upload_s": 1.7,
+        "infra_backoff_s": 0.0,
+        "executions": 1,
+        "memory_flush_s": 0.0,
+        "other_s": 2.9
+      },
+      "memory_unflushed_ops": 0,
+      "llm_usage": {
+        "calls": 4,
+        "errors": 0,
+        "time_s": 31.5,
+        "prompt_tokens": 7211,
+        "completion_tokens": 2537,
+        "reasoning_tokens": 1409,
+        "cache_hit_tokens": 5760,
+        "cache_miss_tokens": 1451,
+        "by_node": {
+          "evaluator": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 19.9,
+            "prompt_tokens": 2332,
+            "completion_tokens": 1597,
+            "reasoning_tokens": 1409,
+            "cache_hit_tokens": 1024,
+            "cache_miss_tokens": 1308
+          },
+          "generator": {
+            "calls": 3,
+            "errors": 0,
+            "time_s": 11.6,
+            "prompt_tokens": 4879,
+            "completion_tokens": 940,
+            "reasoning_tokens": 0,
+            "cache_hit_tokens": 4736,
+            "cache_miss_tokens": 143
+          }
+        }
+      },
+      "error": null
+    },
+    {
+      "module": "data_structures/stacks/stack.py",
+      "file": "stack.py",
+      "status": "done",
+      "retry_count": 0,
+      "evaluator_rejects": 0,
+      "executor_retries": 0,
+      "exit_code": 0,
+      "coverage_pct": 49,
+      "wall_time_s": 86.1,
+      "memory_size_before": null,
+      "memory_size_after": null,
+      "memory_delta": null,
+      "infra_failures": 0,
+      "time_breakdown": {
+        "sandbox_create_s": 0.3,
+        "pip_install_s": 2.7,
+        "pytest_s": 1.1,
+        "llm_total_s": 80.2,
+        "llm_critical_s": 80.2,
+        "upload_s": 0.5,
+        "infra_backoff_s": 0.0,
+        "executions": 1,
+        "memory_flush_s": 0.0,
+        "other_s": 1.7
+      },
+      "memory_unflushed_ops": 0,
+      "llm_usage": {
+        "calls": 3,
+        "errors": 0,
+        "time_s": 80.2,
+        "prompt_tokens": 7715,
+        "completion_tokens": 7018,
+        "reasoning_tokens": 4567,
+        "cache_hit_tokens": 4096,
+        "cache_miss_tokens": 3619,
+        "by_node": {
+          "evaluator": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 62.6,
+            "prompt_tokens": 4466,
+            "completion_tokens": 4890,
+            "reasoning_tokens": 4567,
+            "cache_hit_tokens": 1024,
+            "cache_miss_tokens": 3442
+          },
+          "generator": {
+            "calls": 2,
+            "errors": 0,
+            "time_s": 17.6,
+            "prompt_tokens": 3249,
+            "completion_tokens": 2128,
+            "reasoning_tokens": 0,
+            "cache_hit_tokens": 3072,
+            "cache_miss_tokens": 177
+          }
+        }
+      },
+      "error": null
+    },
+    {
+      "module": "data_structures/queues/queue_by_list.py",
+      "file": "queue_by_list.py",
+      "status": "done",
+      "retry_count": 1,
+      "evaluator_rejects": 0,
+      "executor_retries": 1,
+      "exit_code": 0,
+      "coverage_pct": 92,
+      "wall_time_s": 145.2,
+      "memory_size_before": null,
+      "memory_size_after": null,
+      "memory_delta": null,
+      "infra_failures": 0,
+      "time_breakdown": {
+        "sandbox_create_s": 0.6,
+        "pip_install_s": 3.6,
+        "pytest_s": 2.9,
+        "llm_total_s": 134.0,
+        "llm_critical_s": 134.0,
+        "upload_s": 2.2,
+        "infra_backoff_s": 0.0,
+        "executions": 2,
+        "memory_flush_s": 0.0,
+        "other_s": 4.1
+      },
+      "memory_unflushed_ops": 0,
+      "llm_usage": {
+        "calls": 4,
+        "errors": 0,
+        "time_s": 134.0,
+        "prompt_tokens": 12491,
+        "completion_tokens": 13970,
+        "reasoning_tokens": 9691,
+        "cache_hit_tokens": 4352,
+        "cache_miss_tokens": 8139,
+        "by_node": {
+          "evaluator": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 31.7,
+            "prompt_tokens": 3782,
+            "completion_tokens": 2083,
+            "reasoning_tokens": 1789,
+            "cache_hit_tokens": 1024,
+            "cache_miss_tokens": 2758
+          },
+          "generator": {
+            "calls": 2,
+            "errors": 0,
+            "time_s": 14.3,
+            "prompt_tokens": 2870,
+            "completion_tokens": 1745,
+            "reasoning_tokens": 0,
+            "cache_hit_tokens": 2688,
+            "cache_miss_tokens": 182
+          },
+          "reflector": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 88.0,
+            "prompt_tokens": 5839,
+            "completion_tokens": 10142,
+            "reasoning_tokens": 7902,
+            "cache_hit_tokens": 640,
+            "cache_miss_tokens": 5199
+          }
+        }
+      },
+      "error": null
+    },
+    {
+      "module": "data_structures/linked_list/singly_linked_list.py",
+      "file": "singly_linked_list.py",
+      "status": "done",
+      "retry_count": 1,
+      "evaluator_rejects": 0,
+      "executor_retries": 1,
+      "exit_code": 0,
+      "coverage_pct": 51,
+      "wall_time_s": 262.5,
+      "memory_size_before": null,
+      "memory_size_after": null,
+      "memory_delta": null,
+      "infra_failures": 0,
+      "time_breakdown": {
+        "sandbox_create_s": 1.2,
+        "pip_install_s": 4.5,
+        "pytest_s": 2.9,
+        "llm_total_s": 250.2,
+        "llm_critical_s": 250.2,
+        "upload_s": 1.6,
+        "infra_backoff_s": 0.0,
+        "executions": 2,
+        "memory_flush_s": 0.0,
+        "other_s": 3.7
+      },
+      "memory_unflushed_ops": 0,
+      "llm_usage": {
+        "calls": 4,
+        "errors": 0,
+        "time_s": 250.2,
+        "prompt_tokens": 24855,
+        "completion_tokens": 25729,
+        "reasoning_tokens": 19152,
+        "cache_hit_tokens": 7552,
+        "cache_miss_tokens": 17303,
+        "by_node": {
+          "evaluator": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 100.7,
+            "prompt_tokens": 8013,
+            "completion_tokens": 8066,
+            "reasoning_tokens": 7721,
+            "cache_hit_tokens": 1024,
+            "cache_miss_tokens": 6989
+          },
+          "generator": {
+            "calls": 2,
+            "errors": 0,
+            "time_s": 22.4,
+            "prompt_tokens": 6034,
+            "completion_tokens": 2880,
+            "reasoning_tokens": 0,
+            "cache_hit_tokens": 5888,
+            "cache_miss_tokens": 146
+          },
+          "reflector": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 127.2,
+            "prompt_tokens": 10808,
+            "completion_tokens": 14783,
+            "reasoning_tokens": 11431,
+            "cache_hit_tokens": 640,
+            "cache_miss_tokens": 10168
+          }
+        }
+      },
+      "error": null
+    },
+    {
+      "module": "conversions/decimal_to_binary.py",
+      "file": "decimal_to_binary.py",
+      "status": "done",
+      "retry_count": 1,
+      "evaluator_rejects": 0,
+      "executor_retries": 1,
+      "exit_code": 0,
+      "coverage_pct": 92,
+      "wall_time_s": 93.3,
+      "memory_size_before": null,
+      "memory_size_after": null,
+      "memory_delta": null,
+      "infra_failures": 0,
+      "time_breakdown": {
+        "sandbox_create_s": 1.1,
+        "pip_install_s": 3.8,
+        "pytest_s": 2.2,
+        "llm_total_s": 83.9,
+        "llm_critical_s": 83.9,
+        "upload_s": 0.9,
+        "infra_backoff_s": 0.0,
+        "executions": 2,
+        "memory_flush_s": 0.0,
+        "other_s": 2.3
+      },
+      "memory_unflushed_ops": 0,
+      "llm_usage": {
+        "calls": 4,
+        "errors": 0,
+        "time_s": 83.9,
+        "prompt_tokens": 12726,
+        "completion_tokens": 8585,
+        "reasoning_tokens": 5578,
+        "cache_hit_tokens": 4480,
+        "cache_miss_tokens": 8246,
+        "by_node": {
+          "evaluator": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 35.7,
+            "prompt_tokens": 3261,
+            "completion_tokens": 2783,
+            "reasoning_tokens": 2500,
+            "cache_hit_tokens": 1024,
+            "cache_miss_tokens": 2237
+          },
+          "generator": {
+            "calls": 2,
+            "errors": 0,
+            "time_s": 9.5,
+            "prompt_tokens": 2917,
+            "completion_tokens": 1194,
+            "reasoning_tokens": 0,
+            "cache_hit_tokens": 2816,
+            "cache_miss_tokens": 101
+          },
+          "reflector": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 38.7,
+            "prompt_tokens": 6548,
+            "completion_tokens": 4608,
+            "reasoning_tokens": 3078,
+            "cache_hit_tokens": 640,
+            "cache_miss_tokens": 5908
+          }
+        }
+      },
+      "error": null
+    },
+    {
+      "module": "dynamic_programming/fibonacci.py",
+      "file": "fibonacci.py",
+      "status": "done",
+      "retry_count": 1,
+      "evaluator_rejects": 0,
+      "executor_retries": 1,
+      "exit_code": 0,
+      "coverage_pct": 96,
+      "wall_time_s": 189.8,
+      "memory_size_before": null,
+      "memory_size_after": null,
+      "memory_delta": null,
+      "infra_failures": 0,
+      "time_breakdown": {
+        "sandbox_create_s": 0.6,
+        "pip_install_s": 4.4,
+        "pytest_s": 2.0,
+        "llm_total_s": 180.5,
+        "llm_critical_s": 180.5,
+        "upload_s": 0.9,
+        "infra_backoff_s": 0.0,
+        "executions": 2,
+        "memory_flush_s": 0.0,
+        "other_s": 2.3
+      },
+      "memory_unflushed_ops": 0,
+      "llm_usage": {
+        "calls": 5,
+        "errors": 0,
+        "time_s": 180.5,
+        "prompt_tokens": 11787,
+        "completion_tokens": 17159,
+        "reasoning_tokens": 14026,
+        "cache_hit_tokens": 6528,
+        "cache_miss_tokens": 5259,
+        "by_node": {
+          "evaluator": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 90.4,
+            "prompt_tokens": 2790,
+            "completion_tokens": 6982,
+            "reasoning_tokens": 6548,
+            "cache_hit_tokens": 1024,
+            "cache_miss_tokens": 1766
+          },
+          "generator": {
+            "calls": 3,
+            "errors": 0,
+            "time_s": 13.2,
+            "prompt_tokens": 5112,
+            "completion_tokens": 1279,
+            "reasoning_tokens": 0,
+            "cache_hit_tokens": 4864,
+            "cache_miss_tokens": 248
+          },
+          "reflector": {
+            "calls": 1,
+            "errors": 0,
+            "time_s": 76.9,
+            "prompt_tokens": 3885,
+            "completion_tokens": 8898,
+            "reasoning_tokens": 7478,
+            "cache_hit_tokens": 640,
+            "cache_miss_tokens": 3245
+          }
+        }
+      },
+      "error": null
+    }
+  ]
+}

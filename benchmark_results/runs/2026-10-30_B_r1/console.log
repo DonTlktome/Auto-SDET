@@ -1,0 +1,1786 @@
+
+Run 2026-10-30_B_r1: 19 modules — Same as A with episodic memory OFF (no 
+retrieval, no trajectory writes)
+
+
+(1/19) maths/prime_check.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-pro) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\maths\\prime_check.py'})
+DSML tool-call markup found in LLM content, unwrapping
+No code block found in LLM response, attempting prose-strip fallback
+✓ [Generator]  Generated test_prime_check.py (170 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.73 (WARN)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.65
+  ├─ mock correctness:  0.60
+  └─ code consistency:  0.95
+  Intentionally skipped (anti-gaming):
+    • if __name__ == "__main__": unittest.main() — CLI entrypoint
+    • class Test(unittest.TestCase) — source file contains embedded unittest 
+tests, not production code to unit-test
+  Actionable weaknesses:
+    •  test_non_integer_inputs_raise_value_error includes True, but bool is a 
+subclass of int; is_prime(True) returns False instead of raising ValueError.
+    •  Tests use the mocker fixture from pytest-mock without a source 
+dependency or fixture definition; plain pytest will fail to collect these tests
+with fixture 'mocker' not found.
+    •  Mocking math.sqrt and asserting call counts/order couples tests to the 
+current algorithm, making them brittle to valid internal changes.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox ixpz03todm9gdyw1ypsu0 | exit_code=1 | 5760ms (create 752
+/ pip 2194 / pytest 1179)
+✗ [Executor]  Tests failed:
+ERRORS ====================================
+__ ERROR at setup of TestIsPrimeInternalBehavior.test_uses_sqrt_bound_in_loop 
+__
+file /workspace/test_prime_check.py, line 134
+      def test_uses_sqrt_bound_in_loop(self, mocker):
+E       fixture 'mocker' not found
+>       available fixtures: anyio_backend, anyio_backend_name, 
+anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary,
+capteesys, cov, doctest_namespace, free_tcp_port, free_tcp_port_factory, 
+free_udp_port, free_udp_
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Episodic memory disabled — skipping retrieval
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: FixtureError
+  ├─ root cause:    The tests use the pytest-mock `mocker` fixture without the 
+plugin installed and incorrectly expect `is_prime(True)` to raise ValueError 
+even though bool is a subclass of int and the function returns False.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [122, 134, 152, 162]
+🧠 [Reflector]  Changes made:
+@@ -1,3 +1,4 @@
++from unittest.mock import Mock
+@@ -7,8 +8,8 @@
+-    """Positive (happy path) test cases for is_prime()."""
++    '''Positive (happy path) test cases for is_prime().'''
+-        "number",
++        'number',
+@@ -29,9 +30,9 @@
+-        """is_prime() should return True for known prime numbers."""
++        '''is_prime() should return True for known prime numbers.'''
+-        "number",
++        'number',
+@@ -52,45 +53,50 @@
+-        """is_prime() should return False for non-prime (composite/0/1) 
+numbers."""
++        '''is_prime() should return False for non-prime (composite/0/1) 
+numbers.'''
+-    """Edge case and boundary test cases for is_prime()."""
++    '''Edge case and boundary test cases for is_prime().'''
+-    @pytest.mark.parametrize("number", [0, 1, 2, 3, 4])
++    @pytest.mark.parametrize('number', [0, 1, 2, 3, 4])
+-        """is_prime() should handle the smallest boundary values correctly."""
++        '''is_prime() should handle the smallest boundary values correctly.'''
+-    @pytest.mark.parametrize("number", [4, 5, 6, 7])
++    @pytest.mark.parametrize('number', [4, 5, 6, 7])
+-        """is_prime() should correctly classify numbers around the 2/3/5/7 
+boundary."""
++        '''is_prime() should correctly classify numbers around the 2/3/5/7 
+boundary.'''
+-        """is_prime() should correctly identify a large prime number."""
++        '''is_prime() should correctly identify a large prime number.'''
+-        """is_prime() should correctly identify a large composite number."""
++        '''is_prime() should correctly identify a large composite number.'''
+-        """is_prime() should return False for the square of a prime."""
++        '''is_prime() should return False for the square of a prime.'''
+-        """is_prime() should return False for a semiprime (product of two 
+primes)."""
++        '''is_prime() should return False for a semiprime (product of two 
+primes).'''
++
++    def test_boolean_values_return_false(self):
++        '''is_prime() should return False for bool values because bool is a 
+subclass of int.'''
++        assert is_prime(True) is False
++        assert is_prime(False) is False
+-    """Tests for invalid input handling in is_prime()."""
++    '''Tests for invalid input handling in is_prime().'''
+-        "number",
++        'number',
+@@ -101,17 +107,16 @@
+-        """is_prime() should raise ValueError for negative integers."""
+-        with pytest.raises(ValueError, match="positive integers"):
++        '''is_prime() should raise ValueError for negative integers.'''
++        with pytest.raises(ValueError, match='positive integers'):
+-        "number",
++        'number',
+-            "5",
++            '5',
+-            True,
+@@ -119,10 +124,10 @@
+-        """is_prime() should raise ValueError for non-integer inputs."""
+-        with pytest.raises(ValueError, match="positive integers"):
++        '''is_prime() should raise ValueError for non-integer inputs.'''
++        with pytest.raises(ValueError, match='positive integers'):
+-        """is_prime() should reject floats even if they represent whole 
+numbers."""
++        '''is_prime() should reject floats even if they represent whole 
+numbers.'''
+@@ -130,37 +135,31 @@
+-    """Tests that verify the internal algorithm behavior via mocking."""
++    '''Tests that verify the internal algorithm behavior via mocking.'''
+-    def test_uses_sqrt_bound_in_loop(self, mocker):
+-        """is_prime() should only iterate up to sqrt(number) using the 6k±1 
+pattern."""
+-        # Patch math.sqrt to observe the value passed to it.
++    def test_uses_sqrt_bound_in_loop(self, monkeypatch):
++        '''is_prime() should only iterate up to sqrt(number) using the 6k±1 
+pattern.'''
+-        calls = []
+-
+-        def spy_sqrt(value):
+-            calls.append(value)
+-            return original_sqrt(value)
+-
+-        mocker.patch("maths.prime_check.math.sqrt", side_effect=spy_sqrt)
++        sqrt_mock = Mock(wraps=original_sqrt)
++        monkeypatch.setattr(math, 'sqrt', sqrt_mock)
+-        # sqrt should have been called with the number itself.
+-        assert calls and calls[0] == 97
++        sqrt_mock.assert_called_once_with(97)
+-    def test_returns_early_for_small_primes_without_loop(self, mocker):
+-        """is_prime() should short-circuit for 2 and 3 without entering the 
+loop."""
+-        sqrt_spy = mocker.patch("maths.prime_check.math.sqrt")
++    def test_returns_early_for_small_primes_without_loop(self, monkeypatch):
++        '''is_prime() should short-circuit for 2 and 3 without entering the 
+loop.'''
++        sqrt_mock = Mock()
++        monkeypatch.setattr(math, 'sqrt', sqrt_mock)
+-        # sqrt should not be called for the 2/3 short-circuit path.
+-        sqrt_spy.assert_not_called()
++        sqrt_mock.assert_not_called()
+-    def test_returns_early_for_even_and_multiple_of_three(self, mocker):
+-        """is_prime() should short-circuit for even numbers and multiples of 
+3."""
+-        sqrt_spy = mocker.patch("maths.prime_check.math.sqrt")
++    def test_returns_early_for_even_and_multiple_of_three(self, monkeypatch):
++        '''is_prime() should short-circuit for even numbers and multiples of 
+3.'''
++        sqrt_mock = Mock()
++        monkeypatch.setattr(math, 'sqrt', sqrt_mock)
+@@ -168,3 +167,3 @@
+-        sqrt_spy.assert_not_called()
++        sqrt_mock.assert_not_called()
+✓ [Reflector]  Patch applied, re-executing...
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox iiakalhc3y45c901hufbw | exit_code=0 | 5271ms (create 268
+/ pip 1504 / pytest 1610)
+✓ [Executor]  All tests passed!  Coverage: 47%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+D:\Documents\Study\Projects\Auto-SDET\Auto-SDET\benchmark_results\runs\2026-10-
+30_B_r1\tests\test_maths__prime_check.py
+
+(2/19) maths/fibonacci.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-pro) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\maths\\fibonacci.py'})
+✓ [Generator]  Generated test_fibonacci.py (285 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 1.00 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 1.00
+  ├─ mock correctness:  1.00
+  └─ code consistency:  1.00
+  Intentionally skipped (anti-gaming):
+    • if __name__ == '__main__' block — CLI/doctest benchmark, not 
+unit-testable
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox igrls6dd8ovcz5z4tu5ch | exit_code=0 | 4512ms (create 778
+/ pip 1885 / pytest 1236)
+✓ [Executor]  All tests passed!  Coverage: 87%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+D:\Documents\Study\Projects\Auto-SDET\Auto-SDET\benchmark_results\runs\2026-10-
+30_B_r1\tests\test_maths__fibonacci.py
+
+(3/19) maths/factorial.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-pro) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\maths\\factorial.py'})
+✓ [Generator]  Generated test_factorial.py (130 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.78 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.40
+  ├─ mock correctness:  1.00
+  └─ code consistency:  0.90
+  Intentionally skipped (anti-gaming):
+    • `if __name__ == "__main__":` block — CLI entrypoint with `input()` and 
+`print()`; not unit-testable
+  Actionable weaknesses:
+    •  `test_factorial_non_integral_raises` parametrizes 3.0, but 
+`factorial(3.0)` raises `TypeError` after the integral check, not `ValueError`.
+    •  `test_factorial_float_that_is_integral` asserts `factorial(5.0) == 120`,
+but the current function raises `TypeError` because `range(1, 6.0)` requires 
+ints.
+    •  `test_factorial_recursive_rejects_bool` expects `ValueError`, but 
+`isinstance(True, int)` is true so `factorial_recursive(True)` returns 1.
+    •  Standalone `test_factorial_zero`/`one` and recursive equivalents 
+duplicate values already covered by the positive parametrize cases.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox i39g9njlrp0u60e0oe370 | exit_code=1 | 6680ms (create 297
+/ pip 3595 / pytest 1664)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 39 items
+
+test_factorial.py::TestFactorial::test_factorial_positive_values[0-1] PASSED [ 
+2%]
+test_factorial.py::TestFactorial::test_factorial_positive_values[1-1] PASSED [ 
+5%]
+test_factorial.py::TestFactorial
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Episodic memory disabled — skipping retrieval
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: AssertionError
+  ├─ root cause:    The failing tests assert behavior that does not match the 
+source implementation: iterative factorial raises TypeError for integral floats
+because range receives a float, and recursive factorial treats bool as int 
+because bool is a subclass of int.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [60, 64, 68, 129]
+🧠 [Reflector]  Changes made:
+@@ -1,8 +1,8 @@
+-"""
++'''
+-"""
++'''
+@@ -18,8 +18,8 @@
+-    """Tests for the iterative ``factorial`` function."""
++    '''Tests for the iterative ``factorial`` function.'''
+-        ("number", "expected"),
++        ('number', 'expected'),
+@@ -33,38 +33,39 @@
+-        """Verify factorial returns correct results for non-negative 
+integers."""
++        '''Verify factorial returns correct results for non-negative 
+integers.'''
+-        """Verify factorial agrees with math.factorial across a range."""
++        '''Verify factorial agrees with math.factorial across a range.'''
+-        """Verify factorial(0) returns 1 (empty product)."""
++        '''Verify factorial(0) returns 1 (empty product).'''
+-        """Verify factorial(1) returns 1 (base case)."""
++        '''Verify factorial(1) returns 1 (base case).'''
+-        """Verify factorial handles a moderately large input correctly."""
++        '''Verify factorial handles a moderately large input correctly.'''
+-    @pytest.mark.parametrize("number", [-1, -5, -100])
++    @pytest.mark.parametrize('number', [-1, -5, -100])
+-        """Verify factorial raises ValueError for negative inputs."""
+-        with pytest.raises(ValueError, match="not defined for negative 
+values"):
++        '''Verify factorial raises ValueError for negative inputs.'''
++        with pytest.raises(ValueError, match='not defined for negative 
+values'):
+-    @pytest.mark.parametrize("number", [0.1, 1.5, 3.0, 2.999])
++    @pytest.mark.parametrize('number', [0.1, 1.5, 2.999])
+-        """Verify factorial raises ValueError for non-integral inputs."""
+-        with pytest.raises(ValueError, match="only accepts integral values"):
++        '''Verify factorial raises ValueError for non-integral inputs.'''
++        with pytest.raises(ValueError, match='only accepts integral values'):
+-        """Verify factorial accepts a float that is mathematically 
+integral."""
+-        assert factorial(5.0) == 120
++        '''Verify factorial raises TypeError for an integral float.'''
++        with pytest.raises(TypeError):
++            factorial(5.0)
+@@ -74,8 +75,8 @@
+-    """Tests for the recursive ``factorial_recursive`` function."""
++    '''Tests for the recursive ``factorial_recursive`` function.'''
+-        ("number", "expected"),
++        ('number', 'expected'),
+@@ -89,42 +90,41 @@
+-        """Verify recursive factorial returns correct results for integers."""
++        '''Verify recursive factorial returns correct results for integers.'''
+-        """Verify recursive factorial agrees with math.factorial across a 
+range."""
++        '''Verify recursive factorial agrees with math.factorial across a 
+range.'''
+-        """Verify recursive factorial(0) returns 1 (base case)."""
++        '''Verify recursive factorial(0) returns 1 (base case).'''
+-        """Verify recursive factorial(1) returns 1 (base case)."""
++        '''Verify recursive factorial(1) returns 1 (base case).'''
+-        """Verify recursive factorial handles a moderately large input 
+correctly."""
++        '''Verify recursive factorial handles a moderately large input 
+correctly.'''
+-    @pytest.mark.parametrize("number", [-1, -5, -100])
++    @pytest.mark.parametrize('number', [-1, -5, -100])
+-        """Verify recursive factorial raises ValueError for negative 
+inputs."""
+-        with pytest.raises(ValueError, match="not defined for negative 
+values"):
++        '''Verify recursive factorial raises ValueError for negative 
+inputs.'''
++        with pytest.raises(ValueError, match='not defined for negative 
+values'):
+-    @pytest.mark.parametrize("number", [0.1, 1.5, 3.0, 2.999])
++    @pytest.mark.parametrize('number', [0.1, 1.5, 3.0, 2.999])
+-        """Verify recursive factorial raises ValueError for non-integer 
+inputs."""
+-        with pytest.raises(ValueError, match="only accepts integral values"):
++        '''Verify recursive factorial raises ValueError for non-integer 
+inputs.'''
++        with pytest.raises(ValueError, match='only accepts integral values'):
+-        """Verify recursive factorial rejects floats even if mathematically 
+integral."""
+-        with pytest.raises(ValueError, match="only accepts integral values"):
++        '''Verify recursive factorial rejects floats even if mathematically 
+integral.'''
++        with pytest.raises(ValueError, match='only accepts integral values'):
+-        """Verify recursive factorial rejects bool (not a strict int)."""
+-        with pytest.raises(ValueError, match="only accepts integral values"):
+-            factorial_recursive(True)
++        '''Verify recursive factorial treats bool as int and returns 1.'''
++        assert factorial_recursive(True) == 1
+✓ [Reflector]  Patch applied, re-executing...
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox ic835fs7xhc3bmbo8lz8l | exit_code=0 | 3991ms (create 259
+/ pip 1797 / pytest 1280)
+✓ [Executor]  All tests passed!  Coverage: 80%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+D:\Documents\Study\Projects\Auto-SDET\Auto-SDET\benchmark_results\runs\2026-10-
+30_B_r1\tests\test_maths__factorial.py
+
+(4/19) maths/gcd_of_n_numbers.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-pro) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\maths\\gcd_of_n_numbers.py'}
+)
+✓ [Generator]  Generated test_gcd_of_n_numbers.py (108 lines, 1 file(s) read 
+via tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.97 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.95
+  ├─ mock correctness:  1.00
+  └─ code consistency:  0.90
+  Intentionally skipped (anti-gaming):
+    • if __name__ == "__main__": block — CLI print wrapper with no logical 
+branching
+  Actionable weaknesses:
+    •  Stdlib import Counter is placed after third-party import pytest, 
+deviating from typical PEP8 grouping.
+    •  pytest.raises(Exception) is broad and does not assert the validation 
+error message for invalid GCD inputs.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox iuzl8f5gqcq7r0y8n68kn | exit_code=0 | 5094ms (create 304
+/ pip 1856 / pytest 1725)
+✓ [Executor]  All tests passed!  Coverage: 97%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+D:\Documents\Study\Projects\Auto-SDET\Auto-SDET\benchmark_results\runs\2026-10-
+30_B_r1\tests\test_maths__gcd_of_n_numbers.py
+
+(5/19) maths/sigmoid.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-pro) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\maths\\sigmoid.py'})
+DSML tool-call markup found in LLM content, unwrapping
+No code block found in LLM response, attempting prose-strip fallback
+✓ [Generator]  Generated test_sigmoid.py (81 lines, 1 file(s) read via tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 1.00 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 1.00
+  ├─ mock correctness:  1.00
+  └─ code consistency:  1.00
+  Intentionally skipped (anti-gaming):
+    • if __name__ == "__main__": doctest runner — CLI entrypoint, excluded from
+unit-test denominator
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox io0chdvqxlbobj9wyeo99 | exit_code=1 | 4977ms (create 273
+/ pip 1749 / pytest 1125)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 14 items
+
+test_sigmoid.py::TestSigmoid::test_sigmoid_scalar_values[0.0-0.5] PASSED [  7%]
+test_sigmoid.py::TestSigmoid::test_sigmoid_scalar_values[1.0-0.7310585786300049
+] PASSED [ 14%]
+test_sigmoid.py::TestSigm
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Episodic memory disabled — skipping retrieval
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: AssertionError
+  ├─ root cause:    The test asserted `np.all(result < 1.0)`, but due to 
+floating-point rounding `sigmoid` returns exactly 1.0 for large positive 
+inputs, so the strict inequality fails.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [55]
+🧠 [Reflector]  Changes made:
+@@ -49,9 +49,9 @@
+-        """Test sigmoid output is always strictly between 0 and 1."""
++        """Test sigmoid output is always between 0 and 1."""
+-        assert np.all(result < 1.0)
++        assert np.all(result <= 1.0)
+@@ -79,3 +79,3 @@
+-        assert np.isclose(result[1], 0.0)
++        assert np.isclose(result[1], 0.0)
+✓ [Reflector]  Patch applied, re-executing...
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox iv9g9a2x04l382yad0356 | exit_code=0 | 6163ms (create 780
+/ pip 2033 / pytest 2087)
+✓ [Executor]  All tests passed!  Coverage: 67%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+D:\Documents\Study\Projects\Auto-SDET\Auto-SDET\benchmark_results\runs\2026-10-
+30_B_r1\tests\test_maths__sigmoid.py
+
+(6/19) sorts/bubble_sort.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-pro) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\sorts\\bubble_sort.py'})
+✓ [Generator]  Generated test_bubble_sort.py (108 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.93 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.80
+  ├─ mock correctness:  1.00
+  └─ code consistency:  1.00
+  Intentionally skipped (anti-gaming):
+    • if __name__ == '__main__': block — contains doctest execution, 
+benchmarks, and print output; not suitable for unit tests
+  Actionable weaknesses:
+    •  Misleading test names '..._does_not_mutate_original' for both iterative 
+and recursive functions, though these functions mutate the input list in-place 
+and return the same object.
+    •  Already-sorted iterative test claims to verify short-circuit early exit 
+but only asserts the sorted output; it does not distinguish early exit from a 
+full pass.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox i840kwo4n04z59dsy8dqu | exit_code=0 | 4407ms (create 263
+/ pip 1554 / pytest 884)
+✓ [Executor]  All tests passed!  Coverage: 58%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+D:\Documents\Study\Projects\Auto-SDET\Auto-SDET\benchmark_results\runs\2026-10-
+30_B_r1\tests\test_sorts__bubble_sort.py
+
+(7/19) sorts/quick_sort.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-pro) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\sorts\\quick_sort.py'})
+✓ [Generator]  Generated test_quick_sort.py (62 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.74 (WARN)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.40
+  ├─ mock correctness:  1.00
+  └─ code consistency:  1.00
+  Intentionally skipped (anti-gaming):
+    • if __name__ == '__main__': block — interactive input/print CLI 
+entrypoint; excluded from unit-test coverage
+  Actionable weaknesses:
+    •  test_quick_sort_does_not_mutate_input asserts that the input list is 
+unchanged, but quick_sort mutates its input via collection.pop(pivot_index); 
+this test will always fail.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox ir7mu1qdxct5xd6j2za6r | exit_code=1 | 5701ms (create 282
+/ pip 2299 / pytest 996)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 12 items
+
+test_quick_sort.py::test_quick_sort_positive_cases[unsorted0-expected0] PASSED 
+[  8%]
+test_quick_sort.py::test_quick_sort_positive_cases[unsorted1-expected1] PASSED 
+[ 16%]
+test_quick_sort.py::test_qui
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Episodic memory disabled — skipping retrieval
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: AssertionError
+  ├─ root cause:    The test asserts that `quick_sort` leaves its input 
+unchanged, but the implementation calls `collection.pop(pivot_index)`, so the 
+original list is mutated.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [50]
+🧠 [Reflector]  Changes made:
+@@ -1,8 +1,8 @@
+-"""
++'''
+-cases, and verifies that the function does not mutate the input list.
+-"""
++cases, and verifies sorting behaviour with mutable inputs.
++'''
+@@ -14,5 +14,5 @@
+-    "unsorted, expected",
++    'unsorted, expected',
+@@ -24,10 +24,10 @@
+-    """Test that quick_sort correctly sorts various unsorted lists."""
++    '''Test that quick_sort correctly sorts various unsorted lists.'''
+-    "unsorted, expected",
++    'unsorted, expected',
+@@ -38,13 +38,13 @@
+-    """Test quick_sort on empty, single-element, and duplicate-heavy lists."""
++    '''Test quick_sort on empty, single-element, and duplicate-heavy lists.'''
+-def test_quick_sort_does_not_mutate_input():
+-    """Test that quick_sort returns a new list and leaves the input 
+unchanged."""
++def test_quick_sort_preserves_original_when_given_copy():
++    '''Test that passing a copy to quick_sort leaves the original list 
+unchanged.'''
+-    result = quick_sort(original)
++    result = quick_sort(original[:])
+@@ -52,5 +52,5 @@
+-    """Test quick_sort on a larger list of integers."""
++    '''Test quick_sort on a larger list of integers.'''
+@@ -58,5 +58,5 @@
+-    """Test quick_sort works with comparable non-integer items (strings)."""
+-    unsorted = ["banana", "apple", "cherry", "apple"]
+-    assert quick_sort(unsorted) == ["apple", "apple", "banana", "cherry"]
++    '''Test quick_sort works with comparable non-integer items (strings).'''
++    unsorted = ['banana', 'apple', 'cherry', 'apple']
++    assert quick_sort(unsorted) == ['apple', 'apple', 'banana', 'cherry']
+✓ [Reflector]  Patch applied, re-executing...
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox iytye8zwfacc0fm9l2md3 | exit_code=0 | 4441ms (create 288
+/ pip 1906 / pytest 1587)
+✓ [Executor]  All tests passed!  Coverage: 79%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+D:\Documents\Study\Projects\Auto-SDET\Auto-SDET\benchmark_results\runs\2026-10-
+30_B_r1\tests\test_sorts__quick_sort.py
+
+(8/19) sorts/merge_sort.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-pro) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\sorts\\merge_sort.py'})
+✓ [Generator]  Generated test_merge_sort.py (83 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.92 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.95
+  ├─ mock correctness:  0.90
+  └─ code consistency:  0.85
+  Intentionally skipped (anti-gaming):
+    • if __name__ == '__main__': block — CLI entrypoint with interactive 
+input()/print and doctest; not unit-testable
+  Actionable weaknesses:
+    •  TestMainBlock attempts to unit-test the __main__ CLI entrypoint by 
+exec'ing source after monkeypatching input; this is brittle and outside 
+unit-test scope.
+    •  The exec'd __main__ block calls doctest.testmod() against the current 
+test module, so the 'doctest' portion of the test name is misleading and does 
+not validate merge_sort doctests.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox io45yfzd814l099xggcf6 | exit_code=1 | 5170ms (create 297
+/ pip 2561 / pytest 1107)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 15 items
+
+test_merge_sort.py::TestMergeSort::test_merge_sort_positive[unsorted0-expected0
+] PASSED [  6%]
+test_merge_sort.py::TestMergeSort::test_merge_sort_positive[unsorted1-expected1
+] PASSED [ 13%]
+test_merge
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Episodic memory disabled — skipping retrieval
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: SyntaxError
+  ├─ root cause:    The tests execute the indented body of the module's 
+__main__ guard directly with exec, causing an IndentationError because that 
+block still has module-level indentation.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [72, 81]
+🧠 [Reflector]  Changes made:
+@@ -1,3 +1,3 @@
+-"""
++'''
+@@ -5,5 +5,7 @@
+-"""
++'''
++
++import runpy
+@@ -13,8 +15,8 @@
+-    """Tests for the merge_sort function."""
++    '''Tests for the merge_sort function.'''
+-        "unsorted, expected",
++        'unsorted, expected',
+@@ -26,9 +28,9 @@
+-        """Test that merge_sort correctly sorts various unsorted lists."""
++        '''Test that merge_sort correctly sorts various unsorted lists.'''
+-        "unsorted, expected",
++        'unsorted, expected',
+@@ -40,9 +42,9 @@
+-        """Test merge_sort on empty, single-element, negative, and duplicate 
+inputs."""
++        '''Test merge_sort on empty, single-element, negative, and duplicate 
+inputs.'''
+-        """Test that merge_sort returns a new list and leaves the input 
+unchanged."""
++        '''Test that merge_sort returns a new list and leaves the input 
+unchanged.'''
+@@ -51,10 +53,10 @@
+-        """Test merge_sort on a larger reversed list to exercise recursion 
+depth."""
++        '''Test merge_sort on a larger reversed list to exercise recursion 
+depth.'''
+-        """Test merge_sort with comparable mixed numeric types (int and 
+float)."""
++        '''Test merge_sort with comparable mixed numeric types (int and 
+float).'''
+@@ -62,22 +64,21 @@
+-    """Tests for the interactive ``__main__`` block."""
++    '''Tests for the interactive ``__main__`` block.'''
+-        """Test the __main__ block with valid comma-separated integer 
+input."""
++        '''Test the __main__ block with valid comma-separated integer 
+input.'''
+-        monkeypatch.setattr("builtins.input", lambda _: "5,3,8,1\n")
+-        # Execute the module's __main__ block directly.
+-        exec(open(ms.__file__).read().split('if __name__ == "__main__":')[1])
++        monkeypatch.setattr('builtins.input', lambda _: '5,3,8,1\n')
++        runpy.run_path(ms.__file__, run_name='__main__')
+-        assert "1,3,5,8" in captured.out
++        assert '1,3,5,8' in captured.out
+-        """Test the __main__ block handles invalid (non-integer) input 
+gracefully."""
++        '''Test the __main__ block handles invalid (non-integer) input 
+gracefully.'''
+-        monkeypatch.setattr("builtins.input", lambda _: "a,b,c\n")
+-        exec(open(ms.__file__).read().split('if __name__ == "__main__":')[1])
++        monkeypatch.setattr('builtins.input', lambda _: 'a,b,c\n')
++        runpy.run_path(ms.__file__, run_name='__main__')
+-        assert "Invalid input" in captured.out
++        assert 'Invalid input' in captured.out
+✓ [Reflector]  Patch applied, re-executing...
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox ii7zk51jkzcl5lco06k78 | exit_code=0 | 4015ms (create 279
+/ pip 2157 / pytest 919)
+✓ [Executor]  All tests passed!  Coverage: 100%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+D:\Documents\Study\Projects\Auto-SDET\Auto-SDET\benchmark_results\runs\2026-10-
+30_B_r1\tests\test_sorts__merge_sort.py
+
+(9/19) sorts/insertion_sort.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-pro) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\sorts\\insertion_sort.py'})
+✓ [Generator]  Generated test_insertion_sort.py (112 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.88 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 1.00
+  ├─ mock correctness:  0.70
+  └─ code consistency:  0.85
+  Intentionally skipped (anti-gaming):
+    • __main__ block — CLI entrypoint with interactive input()/print; not 
+unit-testable
+  Actionable weaknesses:
+    •  TestInsertionSortMainBlock does not execute the actual __main__ block; 
+it re-implements input parsing with hardcoded user_input, so the monkeypatched 
+builtins.input is never called. The testmod(module) result is also ignored.
+    •  Imports are scattered inside test functions (random, io, contextlib, 
+doctest), reducing coherence.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox itp64sqrzr21hrl0qlv78 | exit_code=0 | 4938ms (create 285
+/ pip 2390 / pytest 1022)
+✓ [Executor]  All tests passed!  Coverage: 72%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+D:\Documents\Study\Projects\Auto-SDET\Auto-SDET\benchmark_results\runs\2026-10-
+30_B_r1\tests\test_sorts__insertion_sort.py
+
+(10/19) searches/binary_search.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-pro) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\searches\\binary_search.py'}
+)
+✓ [Generator]  Generated test_binary_search.py (306 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 1.00 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 1.00
+  ├─ mock correctness:  1.00
+  └─ code consistency:  1.00
+  Intentionally skipped (anti-gaming):
+    • if __name__ == "__main__" block — CLI entrypoint with 
+doctest/timeit/input(); not a unit-test target
+    • searches tuple — module-level benchmark runner data; no search logic to 
+test
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox i4sdz7c22vzec4t73dx72 | exit_code=1 | 3731ms (create 283
+/ pip 1676 / pytest 1058)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 59 items
+
+test_binary_search.py::TestBisectLeft::test_bisect_left_happy_path[collection0-
+0-0] PASSED [  1%]
+test_binary_search.py::TestBisectLeft::test_bisect_left_happy_path[collection1-
+6-2] PASSED [  3%]
+test
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Episodic memory disabled — skipping retrieval
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+Structured output unavailable: invoke raised: Could not parse response content as the length limit was reached - CompletionUsage(completion_tokens=16384, prompt_tokens=13575, total_tokens=29959, completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=None, audio_tokens=None, reasoning_tokens=16384, rejected_prediction_tokens=None), prompt_tokens_details=PromptTokensDetails(audio_tokens=None, cached_tokens=640), prompt_cache_hit_tokens=640, prompt_cache_miss_tokens=12935)
+✗ [Reflector]  Structured output unavailable: invoke raised: Could not parse 
+response content as the length limit was reached - 
+CompletionUsage(completion_tokens=16384, prompt_tokens=13575, 
+total_tokens=29959, 
+completion_tokens_details=CompletionTokensDetails(accepted_prediction_tokens=No
+ne, audio_tokens=None, reasoning_tokens=16384, 
+rejected_prediction_tokens=None), 
+prompt_tokens_details=PromptTokensDetails(audio_tokens=None, 
+cached_tokens=640), prompt_cache_hit_tokens=640, 
+prompt_cache_miss_tokens=12935)
+✗ [Reflector]  Aborting self-healing loop (no point retrying with the same 
+broken contract)
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox ims1sx5121v27idmnqwsf | exit_code=1 | 4737ms (create 272
+/ pip 2105 / pytest 1139)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 59 items
+
+test_binary_search.py::TestBisectLeft::test_bisect_left_happy_path[collection0-
+0-0] PASSED [  1%]
+test_binary_search.py::TestBisectLeft::test_bisect_left_happy_path[collection1-
+6-2] PASSED [  3%]
+test
+→ [Router]  Max retries (3) reached. Routing to END (failed).
+
+(11/19) searches/linear_search.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-pro) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\searches\\linear_search.py'}
+)
+✓ [Generator]  Generated test_linear_search.py (107 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.70 (WARN)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.75
+  ├─ mock correctness:  1.00
+  └─ code consistency:  1.00
+  Intentionally skipped (anti-gaming):
+    • `__main__` block — interactive CLI using `input()` and `print()`; 
+excluded from unit-testable surface
+  Actionable weaknesses:
+    •  `test_rec_linear_search_single_element_not_found` expects `-1`, but 
+`rec_linear_search([42], 0, 0, 7)` raises `Exception("Invalid upper or lower 
+bound!")` because the next recursive call has `high=-1`.
+    •  Missing coverage for the non-zero `low == high` not-found branch in 
+`rec_linear_search` (e.g. `rec_linear_search([1, 2, 3], 1, 1, 0)`), which 
+currently returns `-1`.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox iron43smam8vx927ivjgc | exit_code=1 | 3987ms (create 262
+/ pip 1618 / pytest 959)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 20 items
+
+test_linear_search.py::TestLinearSearch::test_linear_search_finds_target[sequen
+ce0-0-0] PASSED [  5%]
+test_linear_search.py::TestLinearSearch::test_linear_search_finds_target[sequen
+ce1-15-4] PASSED [ 
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Episodic memory disabled — skipping retrieval
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: Other
+  ├─ root cause:    The test expects `rec_linear_search([42], 0, 0, 7)` to 
+return -1, but the implementation recurses into an invalid bound state (low=1, 
+high=-1) and raises an Exception.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [83, 84]
+🧠 [Reflector]  Changes made:
+@@ -1,3 +1,3 @@
+-"""
++'''
+@@ -5,5 +5,5 @@
+-"""
++'''
+@@ -17,8 +17,8 @@
+-    """Tests for the iterative ``linear_search`` function."""
++    '''Tests for the iterative ``linear_search`` function.'''
+-        "sequence, target, expected",
++        'sequence, target, expected',
+@@ -29,25 +29,25 @@
+-        """Verify the correct index is returned for various target 
+positions."""
++        '''Verify the correct index is returned for various target 
+positions.'''
+-        """Verify a single-element list returns index 0 when the target 
+matches."""
++        '''Verify a single-element list returns index 0 when the target 
+matches.'''
+-        """Verify a single-element list returns -1 when the target is 
+absent."""
++        '''Verify a single-element list returns -1 when the target is 
+absent.'''
+-        """Verify an empty sequence returns -1."""
++        '''Verify an empty sequence returns -1.'''
+-        """Verify the first occurrence is returned when duplicates exist."""
++        '''Verify the first occurrence is returned when duplicates exist.'''
+-        """Verify negative targets are handled correctly."""
++        '''Verify negative targets are handled correctly.'''
+@@ -59,8 +59,8 @@
+-    """Tests for the recursive ``rec_linear_search`` function."""
++    '''Tests for the recursive ``rec_linear_search`` function.'''
+-        "sequence, low, high, target, expected",
++        'sequence, low, high, target, expected',
+@@ -73,35 +73,36 @@
+-        """Verify the correct index is returned for various target 
+positions."""
++        '''Verify the correct index is returned for various target 
+positions.'''
+-        """Verify a single-element list returns index 0 when the target 
+matches."""
++        '''Verify a single-element list returns index 0 when the target 
+matches.'''
+-        """Verify a single-element list returns -1 when the target is 
+absent."""
+-        assert rec_linear_search([42], 0, 0, 7) == -1
++        '''Verify a single-element list raises an exception when target is 
+absent.'''
++        with pytest.raises(Exception, match='Invalid upper or lower bound!'):
++            rec_linear_search([42], 0, 0, 7)
+-        """Verify -1 is returned when the high bound is below the low 
+bound."""
++        '''Verify -1 is returned when the high bound is below the low 
+bound.'''
+-        """Verify an exception is raised when the low bound is out of 
+range."""
+-        with pytest.raises(Exception, match="Invalid upper or lower bound!"):
++        '''Verify an exception is raised when the low bound is out of 
+range.'''
++        with pytest.raises(Exception, match='Invalid upper or lower bound!'):
+-        """Verify an exception is raised when the high bound is out of 
+range."""
+-        with pytest.raises(Exception, match="Invalid upper or lower bound!"):
++        '''Verify an exception is raised when the high bound is out of 
+range.'''
++        with pytest.raises(Exception, match='Invalid upper or lower bound!'):
+-        """Verify an exception is raised for an empty sequence."""
+-        with pytest.raises(Exception, match="Invalid upper or lower bound!"):
++        '''Verify an exception is raised for an empty sequence.'''
++        with pytest.raises(Exception, match='Invalid upper or lower bound!'):
+-        """Verify the first occurrence is returned when duplicates exist."""
+-        assert rec_linear_search([1, 2, 2, 3], 0, 3, 2) == 1
++        '''Verify the first occurrence is returned when duplicates exist.'''
++        assert rec_linear_search([1, 2, 2, 3], 0, 3, 2) == 1
+✓ [Reflector]  Patch applied, re-executing...
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox imkrja9jhvlc7yi7qzi6i | exit_code=0 | 4553ms (create 267
+/ pip 1860 / pytest 1044)
+✓ [Executor]  All tests passed!  Coverage: 70%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+D:\Documents\Study\Projects\Auto-SDET\Auto-SDET\benchmark_results\runs\2026-10-
+30_B_r1\tests\test_searches__linear_search.py
+
+(12/19) strings/palindrome.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-pro) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\strings\\palindrome.py'})
+✓ [Generator]  Generated test_palindrome.py (201 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.95 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.90
+  ├─ mock correctness:  1.00
+  └─ code consistency:  0.90
+  Intentionally skipped (anti-gaming):
+    • benchmark_function — performance benchmarking / print wrapper, not 
+unit-testable logic
+    • if __name__ == '__main__' block — CLI/benchmark orchestration loop, not 
+unit-testable
+  Actionable weaknesses:
+    •  Repetitive per-implementation test classes duplicate identical cases.
+    •  Boolean assertions use identity checks such as `assert fn(s) is True` 
+instead of equality/truthiness.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox ixvax4m7ts0dmgq5x8wjt | exit_code=0 | 3344ms (create 283
+/ pip 1513 / pytest 884)
+✓ [Executor]  All tests passed!  Coverage: 65%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+D:\Documents\Study\Projects\Auto-SDET\Auto-SDET\benchmark_results\runs\2026-10-
+30_B_r1\tests\test_strings__palindrome.py
+
+(13/19) strings/reverse_words.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-pro) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\strings\\reverse_words.py'})
+✓ [Generator]  Generated test_reverse_words.py (63 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 1.00 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 1.00
+  ├─ mock correctness:  1.00
+  └─ code consistency:  1.00
+  Intentionally skipped (anti-gaming):
+    • if __name__ == "__main__": — CLI/doctest runner; inherently 
+non-unit-testable interaction
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox ismuxmu7c7nxhtai02hz9 | exit_code=0 | 5362ms (create 876
+/ pip 1675 / pytest 970)
+✓ [Executor]  All tests passed!  Coverage: 60%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+D:\Documents\Study\Projects\Auto-SDET\Auto-SDET\benchmark_results\runs\2026-10-
+30_B_r1\tests\test_strings__reverse_words.py
+
+(14/19) strings/word_occurrence.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-pro) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\strings\\word_occurrence.py'
+})
+  → tool_call: list_directory({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\strings', 'pattern': 
+'*.py'})
+✓ [Generator]  Generated test_word_occurrence.py (82 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 1.00 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 1.00
+  ├─ mock correctness:  1.00
+  └─ code consistency:  1.00
+  Intentionally skipped (anti-gaming):
+    • if __name__ == '__main__': block — CLI entrypoint/print loop not 
+unit-testable
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox iura99sphmr4h1xuxa4gs | exit_code=0 | 4960ms (create 268
+/ pip 1795 / pytest 1001)
+✓ [Executor]  All tests passed!  Coverage: 78%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+D:\Documents\Study\Projects\Auto-SDET\Auto-SDET\benchmark_results\runs\2026-10-
+30_B_r1\tests\test_strings__word_occurrence.py
+
+(15/19) data_structures/stacks/stack.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-pro) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\data_structures\\stacks\\sta
+ck.py'})
+DSML tool-call markup found in LLM content, unwrapping
+No code block found in LLM response, attempting prose-strip fallback
+✓ [Generator]  Generated test_stack.py (286 lines, 1 file(s) read via tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.98 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.95
+  ├─ mock correctness:  1.00
+  └─ code consistency:  0.95
+  Intentionally skipped (anti-gaming):
+    • test_stack module-level function — self-test routine invoked only from 
+the __main__ CLI path; equivalent behavior covered by the pytest suite
+    • if __name__ == '__main__' block — CLI entrypoint
+  Actionable weaknesses:
+    •  A few boolean assertions use `is True` / `is False` rather than 
+idiomatic bare assertions.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox iettuderwx5si225hyouf | exit_code=0 | 4843ms (create 289
+/ pip 2729 / pytest 1106)
+✓ [Executor]  All tests passed!  Coverage: 49%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+D:\Documents\Study\Projects\Auto-SDET\Auto-SDET\benchmark_results\runs\2026-10-
+30_B_r1\tests\test_data_structures__stacks__stack.py
+
+(16/19) data_structures/queues/queue_by_list.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-pro) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\data_structures\\queues\\que
+ue_by_list.py'})
+✓ [Generator]  Generated test_queue_by_list.py (209 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.96 (PASS)
+  ├─ testable coverage: 0.95
+  ├─ assertion quality: 0.95
+  ├─ mock correctness:  1.00
+  └─ code consistency:  0.95
+  Intentionally skipped (anti-gaming):
+    • `if __name__ == '__main__':` doctest runner — CLI/doctest execution 
+entrypoint, not unit-testable
+  Actionable weaknesses:
+    •  Tests directly assert the internal `.entries` attribute rather than 
+relying solely on public behavior.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox iey4jhvmrprbkvaw0ar2u | exit_code=1 | 5180ms (create 287
+/ pip 1869 / pytest 1758)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 31 items
+
+test_queue_by_list.py::TestInit::test_init_empty PASSED                  [  3%]
+test_queue_by_list.py::TestInit::test_init_with_list PASSED              [  6%]
+test_queue_by_list.py::TestInit::test_in
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Episodic memory disabled — skipping retrieval
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: Other
+  ├─ root cause:    The test incorrectly expects rotate on an empty queue to be
+a no-op, but QueueByList.rotate raises IndexError when it tries to pop from an 
+empty list for a non-zero rotation.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [176, 177]
+🧠 [Reflector]  Changes made:
+@@ -172,7 +172,8 @@
+-        """Rotating an empty queue does nothing and does not raise."""
+-        queue = QueueByList()
+-        queue.rotate(3)
++        """Rotating an empty queue raises IndexError."""
++        queue = QueueByList()
++        with pytest.raises(IndexError):
++            queue.rotate(3)
+@@ -207,3 +208,3 @@
+-            queue.get_front()
++            queue.get_front()
+✓ [Reflector]  Patch applied, re-executing...
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox in7vpurvtu9wwko0iz1w2 | exit_code=0 | 4488ms (create 297
+/ pip 1777 / pytest 1110)
+✓ [Executor]  All tests passed!  Coverage: 92%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+D:\Documents\Study\Projects\Auto-SDET\Auto-SDET\benchmark_results\runs\2026-10-
+30_B_r1\tests\test_data_structures__queues__queue_by_list.py
+
+(17/19) data_structures/linked_list/singly_linked_list.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-pro) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\data_structures\\linked_list
+\\singly_linked_list.py'})
+DSML tool-call markup found in LLM content, unwrapping
+No code block found in LLM response, attempting prose-strip fallback
+✓ [Generator]  Generated test_singly_linked_list.py (344 lines, 1 file(s) read 
+via tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.96 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.90
+  ├─ mock correctness:  1.00
+  └─ code consistency:  1.00
+  Intentionally skipped (anti-gaming):
+    • main() — interactive CLI entrypoint with input()
+    • if __name__ == "__main__": — CLI entrypoint
+    • test_singly_linked_list() / test_singly_linked_list_2() — internal 
+smoke-test helpers; production behavior already covered by pytest suite
+  Actionable weaknesses:
+    •  test_mixed_types_roundtrip expects delete_nth(3) to return None, but 
+after delete_head and delete_tail the element at index 3 is 7, so the assertion
+will fail.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox i11yq8zcw9p81sztixq5h | exit_code=1 | 4570ms (create 265
+/ pip 1860 / pytest 1734)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 44 items
+
+test_singly_linked_list.py::TestNode::test_node_creation_default_next PASSED [ 
+2%]
+test_singly_linked_list.py::TestNode::test_node_creation_with_next PASSED [  
+4%]
+test_singly_linked_list.py::TestNod
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Episodic memory disabled — skipping retrieval
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: AssertionError
+  ├─ root cause:    The test asserted delete_nth(3) returns None, but after 
+deleting the head and tail the None value is at index 4, so delete_nth(3) 
+returns 7 instead.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [343]
+🧠 [Reflector]  Changes made:
+@@ -8,8 +8,8 @@
+-    """Tests for the Node dataclass."""
++    '''Tests for the Node dataclass.'''
+-        """A Node created with only data should have next_node set to None."""
++        '''A Node created with only data should have next_node set to None.'''
+@@ -17,5 +17,5 @@
+-        """A Node can be linked to another Node via next_node."""
++        '''A Node can be linked to another Node via next_node.'''
+@@ -23,14 +23,14 @@
+-        "data,expected",
++        'data,expected',
+-            (20, "Node(20)"),
+-            ("Hello, world!", "Node(Hello, world!)"),
+-            (None, "Node(None)"),
+-            (True, "Node(True)"),
++            (20, 'Node(20)'),
++            ('Hello, world!', 'Node(Hello, world!)'),
++            (None, 'Node(None)'),
++            (True, 'Node(True)'),
+-        """repr() should produce the expected string for various data 
+types."""
++        '''repr() should produce the expected string for various data 
+types.'''
+@@ -40,8 +40,8 @@
+-    """Tests for construction, emptiness, and length."""
++    '''Tests for construction, emptiness, and length.'''
+-        """A freshly created LinkedList should have a None head and length 
+0."""
++        '''A freshly created LinkedList should have a None head and length 
+0.'''
+@@ -50,11 +50,11 @@
+-        """is_empty should return False after inserting an element."""
+-        linked_list = LinkedList()
+-        linked_list.insert_head("first")
++        '''is_empty should return False after inserting an element.'''
++        linked_list = LinkedList()
++        linked_list.insert_head('first')
+-        """len() should track the number of inserted nodes."""
++        '''len() should track the number of inserted nodes.'''
+@@ -67,69 +67,69 @@
+-    """Tests for insert_tail, insert_head, and insert_nth."""
++    '''Tests for insert_tail, insert_head, and insert_nth.'''
+-        """Inserting a single tail element should make it the head."""
+-        linked_list = LinkedList()
+-        linked_list.insert_tail("tail")
+-        assert str(linked_list) == "tail"
++        '''Inserting a single tail element should make it the head.'''
++        linked_list = LinkedList()
++        linked_list.insert_tail('tail')
++        assert str(linked_list) == 'tail'
+-        """Multiple tail insertions should preserve insertion order."""
+-        linked_list = LinkedList()
+-        linked_list.insert_tail("a")
+-        linked_list.insert_tail("b")
+-        linked_list.insert_tail("c")
+-        assert str(linked_list) == "a -> b -> c"
++        '''Multiple tail insertions should preserve insertion order.'''
++        linked_list = LinkedList()
++        linked_list.insert_tail('a')
++        linked_list.insert_tail('b')
++        linked_list.insert_tail('c')
++        assert str(linked_list) == 'a -> b -> c'
+-        """Inserting a single head element should make it the head."""
+-        linked_list = LinkedList()
+-        linked_list.insert_head("head")
+-        assert str(linked_list) == "head"
++        '''Inserting a single head element should make it the head.'''
++        linked_list = LinkedList()
++        linked_list.insert_head('head')
++        assert str(linked_list) == 'head'
+-        """Head insertions should prepend, reversing insertion order."""
+-        linked_list = LinkedList()
+-        linked_list.insert_head("a")
+-        linked_list.insert_head("b")
+-        linked_list.insert_head("c")
+-        assert str(linked_list) == "c -> b -> a"
++        '''Head insertions should prepend, reversing insertion order.'''
++        linked_list = LinkedList()
++        linked_list.insert_head('a')
++        linked_list.insert_head('b')
++        linked_list.insert_head('c')
++        assert str(linked_list) == 'c -> b -> a'
+-        """insert_nth should place an element at the given index."""
+-        linked_list = LinkedList()
+-        for value in ("first", "second", "third"):
+-            linked_list.insert_tail(value)
+-        linked_list.insert_nth(1, "fourth")
+-        assert str(linked_list) == "first -> fourth -> second -> third"
++        '''insert_nth should place an element at the given index.'''
++        linked_list = LinkedList()
++        for value in ('first', 'second', 'third'):
++            linked_list.insert_tail(value)
++        linked_list.insert_nth(1, 'fourth')
++        assert str(linked_list) == 'first -> fourth -> second -> third'
+-        """insert_nth(0, ...) should behave like insert_head."""
+-        linked_list = LinkedList()
+-        linked_list.insert_tail("b")
+-        linked_list.insert_nth(0, "a")
+-        assert str(linked_list) == "a -> b"
++        '''insert_nth(0, ...) should behave like insert_head.'''
++        linked_list = LinkedList()
++        linked_list.insert_tail('b')
++        linked_list.insert_nth(0, 'a')
++        assert str(linked_list) == 'a -> b'
+-        """insert_nth(len, ...) should behave like insert_tail."""
+-        linked_list = LinkedList()
+-        linked_list.insert_tail("a")
+-        linked_list.insert_nth(1, "b")
+-        assert str(linked_list) == "a -> b"
++        '''insert_nth(len, ...) should behave like insert_tail.'''
++        linked_list = LinkedList()
++        linked_list.insert_tail('a')
++        linked_list.insert_nth(1, 'b')
++        assert str(linked_list) == 'a -> b'
+-        """insert_nth(0, ...) on an empty list should create the head."""
+-        linked_list = LinkedList()
+-        linked_list.insert_nth(0, "only")
+-        assert str(linked_list) == "only"
+-
+-    @pytest.mark.parametrize("index", [-1, 2])
++        '''insert_nth(0, ...) on an empty list should create the head.'''
++        linked_list = LinkedList()
++        linked_list.insert_nth(0, 'only')
++        assert str(linked_list) == 'only'
++
++    @pytest.mark.parametrize('index', [-1, 2])
+-        """insert_nth with an invalid index should raise IndexError."""
+-        linked_list = LinkedList()
+-        linked_list.insert_tail("a")
++        '''insert_nth with an invalid index should raise IndexError.'''
++        linked_list = LinkedList()
++        linked_list.insert_tail('a')
+-            linked_list.insert_nth(index, "bad")
++            linked_list.insert_nth(index, 'bad')
+@@ -138,40 +138,40 @@
+-    """Tests for delete_head, delete_tail, and delete_nth."""
++    '''Tests for delete_head, delete_tail, and delete_nth.'''
+-        """delete_head should return the removed node's data."""
+-        linked_list = LinkedList()
+-        for value in ("first", "second", "third"):
+-            linked_list.insert_tail(value)
+-        assert linked_list.delete_head() == "first"
+-        assert str(linked_list) == "second -> third"
++        '''delete_head should return the removed node's data.'''
++        linked_list = LinkedList()
++        for value in ('first', 'second', 'third'):
++            linked_list.insert_tail(value)
++        assert linked_list.delete_head() == 'first'
++        assert str(linked_list) == 'second -> third'
+-        """delete_tail should return the removed node's data."""
+-        linked_list = LinkedList()
+-        for value in ("first", "second", "third"):
+-            linked_list.insert_tail(value)
+-        assert linked_list.delete_tail() == "third"
+-        assert str(linked_list) == "first -> second"
++        '''delete_tail should return the removed node's data.'''
++        linked_list = LinkedList()
++        for value in ('first', 'second', 'third'):
++            linked_list.insert_tail(value)
++        assert linked_list.delete_tail() == 'third'
++        assert str(linked_list) == 'first -> second'
+-        """delete_nth should remove and return the middle element."""
+-        linked_list = LinkedList()
+-        for value in ("first", "second", "third"):
+-            linked_list.insert_tail(value)
+-        assert linked_list.delete_nth(1) == "second"
+-        assert str(linked_list) == "first -> third"
++        '''delete_nth should remove and return the middle element.'''
++        linked_list = LinkedList()
++        for value in ('first', 'second', 'third'):
++            linked_list.insert_tail(value)
++        assert linked_list.delete_nth(1) == 'second'
++        assert str(linked_list) == 'first -> third'
+-        """delete_nth with no argument should delete the head."""
+-        linked_list = LinkedList()
+-        linked_list.insert_tail("a")
+-        linked_list.insert_tail("b")
+-        assert linked_list.delete_nth() == "a"
+-        assert str(linked_list) == "b"
++        '''delete_nth with no argument should delete the head.'''
++        linked_list = LinkedList()
++        linked_list.insert_tail('a')
++        linked_list.insert_tail('b')
++        assert linked_list.delete_nth() == 'a'
++        assert str(linked_list) == 'b'
+-        """delete_head on an empty list should raise IndexError."""
++        '''delete_head on an empty list should raise IndexError.'''
+@@ -179,14 +179,14 @@
+-        """delete_tail on an empty list should raise IndexError."""
++        '''delete_tail on an empty list should raise IndexError.'''
+-    @pytest.mark.parametrize("index", [-1, 5])
++    @pytest.mark.parametrize('index', [-1, 5])
+-        """delete_nth with an invalid index should raise IndexError."""
+-        linked_list = LinkedList()
+-        for value in ("first", "second", "third"):
++        '''delete_nth with an invalid index should raise IndexError.'''
++        linked_list = LinkedList()
++        for value in ('first', 'second', 'third'):
+@@ -194,8 +194,8 @@
+-        """Deleting the only element should leave an empty list."""
+-        linked_list = LinkedList()
+-        linked_list.insert_tail("only")
+-        assert linked_list.delete_head() == "only"
++        '''Deleting the only element should leave an empty list.'''
++        linked_list = LinkedList()
++        linked_list.insert_tail('only')
++        assert linked_list.delete_head() == 'only'
+@@ -206,19 +206,19 @@
+-    """Tests for __iter__, __getitem__, and __setitem__."""
++    '''Tests for __iter__, __getitem__, and __setitem__.'''
+-        """Iteration should yield node data in list order."""
+-        linked_list = LinkedList()
+-        for value in ("a", "b", "c"):
+-            linked_list.insert_tail(value)
+-        assert list(linked_list) == ["a", "b", "c"]
++        '''Iteration should yield node data in list order.'''
++        linked_list = LinkedList()
++        for value in ('a', 'b', 'c'):
++            linked_list.insert_tail(value)
++        assert list(linked_list) == ['a', 'b', 'c']
+-        """Iterating an empty list should yield nothing."""
++        '''Iterating an empty list should yield nothing.'''
+-        """__getitem__ should return data at the given index."""
++        '''__getitem__ should return data at the given index.'''
+@@ -227,7 +227,7 @@
+-    @pytest.mark.parametrize("index", [-1, 5])
++    @pytest.mark.parametrize('index', [-1, 5])
+-        """__getitem__ with an invalid index should raise ValueError."""
++        '''__getitem__ with an invalid index should raise ValueError.'''
+@@ -237,5 +237,5 @@
+-        """__setitem__ should update the data at the given index."""
++        '''__setitem__ should update the data at the given index.'''
+@@ -243,9 +243,9 @@
+-        assert str(linked_list) == "0 -> 99 -> 2"
+-
+-    @pytest.mark.parametrize("index", [-1, 3])
++        assert str(linked_list) == '0 -> 99 -> 2'
++
++    @pytest.mark.parametrize('index', [-1, 3])
+-        """__setitem__ with an invalid index should raise ValueError."""
++        '''__setitem__ with an invalid index should raise ValueError.'''
+@@ -259,17 +259,17 @@
+-    """Tests for __repr__ / __str__."""
++    '''Tests for __repr__ / __str__.'''
+-        """An empty list should have an empty string representation."""
+-        assert str(LinkedList()) == ""
++        '''An empty list should have an empty string representation.'''
++        assert str(LinkedList()) == ''
+-        """repr should join node data with ' -> '."""
++        '''repr should join node data with ' -> '.'''
+-        assert repr(linked_list) == "1 -> 3 -> 5"
+-        assert str(linked_list) == "1 -> 3 -> 5"
++        assert repr(linked_list) == '1 -> 3 -> 5'
++        assert str(linked_list) == '1 -> 3 -> 5'
+@@ -278,23 +278,23 @@
+-    """Tests for the reverse method."""
++    '''Tests for the reverse method.'''
+-        """reverse should invert the order of the list."""
+-        linked_list = LinkedList()
+-        for value in ("first", "second", "third"):
++        '''reverse should invert the order of the list.'''
++        linked_list = LinkedList()
++        for value in ('first', 'second', 'third'):
+-        assert str(linked_list) == "third -> second -> first"
++        assert str(linked_list) == 'third -> second -> first'
+-        """Reversing a single-element list should leave it unchanged."""
+-        linked_list = LinkedList()
+-        linked_list.insert_tail("only")
++        '''Reversing a single-element list should leave it unchanged.'''
++        linked_list = LinkedList()
++        linked_list.insert_tail('only')
+-        assert str(linked_list) == "only"
++        assert str(linked_list) == 'only'
+-        """Reversing an empty list should not raise and remain empty."""
++        '''Reversing an empty list should not raise and remain empty.'''
+@@ -306,21 +306,21 @@
+-    """Tests for the print_list method."""
++    '''Tests for the print_list method.'''
+-        """print_list should print the string representation to stdout."""
+-        linked_list = LinkedList()
+-        for value in ("first", "second", "third"):
++        '''print_list should print the string representation to stdout.'''
++        linked_list = LinkedList()
++        for value in ('first', 'second', 'third'):
+-        assert captured.out == "first -> second -> third\n"
++        assert captured.out == 'first -> second -> third\n'
+-        """print_list on an empty list should print an empty line."""
++        '''print_list on an empty list should print an empty line.'''
+-        assert captured.out == "\n"
++        assert captured.out == '\n'
+@@ -329,9 +329,9 @@
+-    """Tests using heterogeneous data types."""
++    '''Tests using heterogeneous data types.'''
+-        """The list should preserve heterogeneous data types."""
+-        values = [-9, 100, Node(77345112), "dlrow olleH", 7, None, 12.20]
++        '''The list should preserve heterogeneous data types.'''
++        values = [-9, 100, Node(77345112), 'dlrow olleH', 7, None, 12.20]
+@@ -341,4 +341,4 @@
+-        assert linked_list.delete_nth(3) is None
+-        assert len(linked_list) == 4
++        assert linked_list.delete_nth(4) is None
++        assert len(linked_list) == 4
+✓ [Reflector]  Patch applied, re-executing...
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox i8d0sh0orn1hz1dku1imt | exit_code=0 | 6528ms (create 954
+/ pip 2666 / pytest 1127)
+✓ [Executor]  All tests passed!  Coverage: 51%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+D:\Documents\Study\Projects\Auto-SDET\Auto-SDET\benchmark_results\runs\2026-10-
+30_B_r1\tests\test_data_structures__linked_list__singly_linked_list.py
+
+(18/19) conversions/decimal_to_binary.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-pro) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\conversions\\decimal_to_bina
+ry.py'})
+DSML tool-call markup found in LLM content, unwrapping
+No code block found in LLM response, attempting prose-strip fallback
+✓ [Generator]  Generated test_decimal_to_binary.py (139 lines, 1 file(s) read 
+via tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.97 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.95
+  ├─ mock correctness:  1.00
+  └─ code consistency:  0.95
+  Intentionally skipped (anti-gaming):
+    • `if __name__ == "__main__":` block — CLI entrypoint with interactive 
+`input()` and doctest runner, not unit-testable
+  Actionable weaknesses:
+    •  Dynamic expected value in `test_string_inputs_with_whitespace` 
+recomputes the sign instead of using explicit parametrized expected strings.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox i9v660s7qqnb2s2wzcmes | exit_code=1 | 3915ms (create 269
+/ pip 1874 / pytest 1133)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 34 items
+
+test_decimal_to_binary.py::TestDecimalToBinaryIterative::test_positive_integers
+[0-0b0] PASSED [  2%]
+test_decimal_to_binary.py::TestDecimalToBinaryIterative::test_positive_integers
+[1-0b1] PASSED [  5%
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Episodic memory disabled — skipping retrieval
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: AssertionError
+  ├─ root cause:    The test computes the expected sign with 
+number.strip().lstrip("-") == "40", which also strips the leading minus from 
+negative inputs and therefore assigns a positive expected value for negative 
+strings.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [118, 119]
+🧠 [Reflector]  Changes made:
+@@ -116,5 +116,5 @@
+-        expected = "0b101000" if number.strip().lstrip("-") == "40" else 
+"-0b101000"
++        expected = "-0b101000" if number.strip().startswith("-") else 
+"0b101000"
+@@ -137,3 +137,3 @@
+-            decimal_to_binary_recursive("   ")
++            decimal_to_binary_recursive("   ")
+✓ [Reflector]  Patch applied, re-executing...
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox itnitxnfvs8d2yh3mmq5l | exit_code=0 | 4519ms (create 784
+/ pip 1944 / pytest 1116)
+✓ [Executor]  All tests passed!  Coverage: 92%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+D:\Documents\Study\Projects\Auto-SDET\Auto-SDET\benchmark_results\runs\2026-10-
+30_B_r1\tests\test_conversions__decimal_to_binary.py
+
+(19/19) dynamic_programming/fibonacci.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-pro) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\dynamic_programming\\fibonac
+ci.py'})
+  → tool_call: list_directory({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\dynamic_programming'})
+✓ [Generator]  Generated test_fibonacci.py (117 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.84 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.60
+  ├─ mock correctness:  0.95
+  └─ code consistency:  0.95
+  Intentionally skipped (anti-gaming):
+    • main() — interactive input() loop / CLI entrypoint; tested but excluded 
+from unit coverage denominator
+    • if __name__ == "__main__" block — script entrypoint
+  Actionable weaknesses:
+    •  test_get_negative_index_returns_empty asserts fib.get(-1) == [], but 
+Fibonacci.get uses slice self.sequence[:index], so get(-1) returns [0].
+    •  test_main_exits_on_exit contains no assertion; it only checks that no 
+exception is raised.
+    •  TestFibonacciMain unit-tests main(), an interactive I/O loop that should
+be excluded from unit coverage policy.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox i53tzym4dkaro3uurtgaf | exit_code=1 | 4188ms (create 350
+/ pip 2176 / pytest 1004)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 16 items
+
+test_fibonacci.py::TestFibonacciGet::test_get_initial_sequence PASSED    [  6%]
+test_fibonacci.py::TestFibonacciGet::test_get_zero_returns_empty_list PASSED [ 
+12%]
+test_fibonacci.py::TestFibonacciGet:
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Episodic memory disabled — skipping retrieval
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: AssertionError
+  ├─ root cause:    The negative-index test asserted an empty list, but 
+Fibonacci.get(-1) returns [0] because slicing self.sequence[:-1] omits only the
+last element.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [74]
+🧠 [Reflector]  Changes made:
+@@ -1,10 +1,2 @@
+-"""
+-Pytest test suite for the Fibonacci dynamic programming implementation.
+-
+-Covers the ``Fibonacci`` class (``get`` method) and the ``main`` function,
+-including happy paths, edge cases, boundary conditions, and isolation of
+-external I/O dependencies.
+-"""
+-
+@@ -69,8 +61,8 @@
+-    def test_get_negative_index_returns_empty(self):
+-        """A negative index produces an empty slice (edge case)."""
++    def test_get_negative_index_returns_first_element(self):
++        """A negative index slices off only the last element, returning 
+[0]."""
+-        assert fib.get(-1) == []
++        assert fib.get(-1) == [0]
+@@ -115,3 +107,3 @@
+-        assert "[0, 1, 1, 2, 3]" in captured.out
++        assert "[0, 1, 1, 2, 3]" in captured.out
+✓ [Reflector]  Patch applied, re-executing...
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox ir4zarjzlw7duwur9s45n | exit_code=0 | 4114ms (create 272
+/ pip 2200 / pytest 1021)
+✓ [Executor]  All tests passed!  Coverage: 96%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+D:\Documents\Study\Projects\Auto-SDET\Auto-SDET\benchmark_results\runs\2026-10-
+30_B_r1\tests\test_dynamic_programming__fibonacci.py
+
+
+                              Per-module results                               
+┌──────────┬────────┬─────────┬─────────┬──────────┬──────┬─────────┬─────────┐
+│ Module   │ Status │ Retries │ EvalRej │ ExecRet… │ MemΔ │ Covera… │ Time(s) │
+├──────────┼────────┼─────────┼─────────┼──────────┼──────┼─────────┼─────────┤
+│ maths/p… │ done   │       1 │       0 │        1 │    - │     47% │   290.5 │
+│ maths/f… │ done   │       0 │       0 │        0 │    - │     87% │    88.4 │
+│ maths/f… │ done   │       1 │       0 │        1 │    - │     80% │   229.6 │
+│ maths/g… │ done   │       0 │       0 │        0 │    - │     97% │    71.6 │
+│ maths/s… │ done   │       1 │       0 │        1 │    - │     67% │    84.4 │
+│ sorts/b… │ done   │       0 │       0 │        0 │    - │     58% │    62.9 │
+│ sorts/q… │ done   │       1 │       0 │        1 │    - │     79% │   231.7 │
+│ sorts/m… │ done   │       1 │       0 │        1 │    - │    100% │   237.6 │
+│ sorts/i… │ done   │       0 │       0 │        0 │    - │     72% │    82.6 │
+│ searche… │ failed │       3 │       0 │        3 │    - │     84% │   271.8 │
+│ searche… │ done   │       1 │       0 │        1 │    - │     70% │   204.4 │
+│ strings… │ done   │       0 │       0 │        0 │    - │     65% │    55.9 │
+│ strings… │ done   │       0 │       0 │        0 │    - │     60% │    41.3 │
+│ strings… │ done   │       0 │       0 │        0 │    - │     78% │    37.5 │
+│ data_st… │ done   │       0 │       0 │        0 │    - │     49% │    86.1 │
+│ data_st… │ done   │       1 │       0 │        1 │    - │     92% │   145.2 │
+│ data_st… │ done   │       1 │       0 │        1 │    - │     51% │   262.5 │
+│ convers… │ done   │       1 │       0 │        1 │    - │     92% │    93.3 │
+│ dynamic… │ done   │       1 │       0 │        1 │    - │     96% │   189.8 │
+└──────────┴────────┴─────────┴─────────┴──────────┴──────┴─────────┴─────────┘
+
+
+                              Aggregate summary                               
+┌──────────────────────────────────────────────┬─────────────────────────────┐
+│ Total modules                                │ 19                          │
+│ One-shot pass rate                           │ 42.1%                       │
+│ Final pass rate (after self-healing)         │ 94.7%                       │
+│ Avg retries (total)                          │ 0.68                        │
+│   ├─ avg Evaluator rejects                   │ 0                           │
+│   └─ avg real Executor retries               │ 0.68                        │
+│ Total Evaluator rejects across run           │ 0                           │
+│ Avg coverage                                 │ 74.4%                       │
+│ Avg wall time per module                     │ 145.6s                      │
+│ Sandbox infra failures (retried)             │ 0                           │
+│ Modules ended by infra failure               │ 0                           │
+│ Avg time split (create / pip / pytest / LLM) │ 0.6s / 3.2s / 1.9s / 136.7s │
+│ LLM calls / prompt / completion tokens       │ 70 / 200616 / 226529        │
+└──────────────────────────────────────────────┴─────────────────────────────┘
+
+Results saved to: 
+D:\Documents\Study\Projects\Auto-SDET\Auto-SDET\benchmark_results\2026-10-30_B_
+r1.json
