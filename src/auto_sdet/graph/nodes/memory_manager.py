@@ -24,6 +24,7 @@ from __future__ import annotations
 import contextvars
 import logging
 import threading
+import time
 
 from langchain_core.messages import SystemMessage, HumanMessage
 from rich.console import Console
@@ -41,6 +42,28 @@ console = Console()
 # Balance: enough context to spot duplicates / contradictions, but not so
 # many that the prompt balloons.
 NEIGHBOR_K = 3
+
+# Background CRUD threads still in flight. Within a run they stay async (the
+# agent never waits on memory), but run_agent() joins them before returning
+# so writes land before the process exits / the next module starts.
+_pending_threads: list[threading.Thread] = []
+_pending_lock = threading.Lock()
+
+
+def wait_for_pending_memory_ops(timeout: float = 180.0) -> int:
+    """
+    Block until outstanding background CRUD threads finish (or `timeout`).
+
+    Returns the number of threads still running afterwards (0 = all flushed).
+    """
+    deadline = time.monotonic() + timeout
+    with _pending_lock:
+        threads = list(_pending_threads)
+    for t in threads:
+        t.join(max(0.0, deadline - time.monotonic()))
+    with _pending_lock:
+        _pending_threads[:] = [t for t in _pending_threads if t.is_alive()]
+        return len(_pending_threads)
 
 
 def memory_manager_node(state: AgentState) -> dict:
@@ -71,12 +94,15 @@ def memory_manager_node(state: AgentState) -> dict:
     # copy_context() carries the LangChain run config (callbacks, tracing
     # parent) into the thread so its LLM call is still observed.
     ctx = contextvars.copy_context()
-    threading.Thread(
+    thread = threading.Thread(
         target=ctx.run,
         args=(_background_process, pending),
         daemon=True,
         name=f"MemoryManager-{pending.trajectory_id[:8]}",
-    ).start()
+    )
+    with _pending_lock:
+        _pending_threads.append(thread)
+    thread.start()
 
     return {"pending_trajectory": None}
 

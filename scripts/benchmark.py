@@ -100,14 +100,15 @@ def _memory_size_safe() -> int | None:
         return None
 
 
-def _time_breakdown(timings: dict, llm: dict, wall_time: float) -> dict:
+def _time_breakdown(timings: dict, llm: dict, wall_time: float, memory_flush_s: float) -> dict:
     """
     Per-module time accounting: sandbox create / pip / pytest / LLM.
 
     `llm_critical_s` excludes the MemoryManager's background-thread calls,
     which overlap other work; `other_s` is the remainder of wall time not
     covered by the critical-path segments (graph overhead, embeddings,
-    file upload, infra retry backoff).
+    file upload, infra retry backoff). `memory_flush_s` is the end-of-module
+    wait for background memory writes.
     """
     sandbox_create_s = timings.get("sandbox_create_ms", 0) / 1000
     pip_install_s = timings.get("pip_install_ms", 0) / 1000
@@ -124,7 +125,8 @@ def _time_breakdown(timings: dict, llm: dict, wall_time: float) -> dict:
         "upload_s": round(timings.get("upload_ms", 0) / 1000, 1),
         "infra_backoff_s": round(timings.get("infra_backoff_ms", 0) / 1000, 1),
         "executions": timings.get("executions", 0),
-        "other_s": round(wall_time - sandbox_create_s - pip_install_s - pytest_s - llm_critical_s, 1),
+        "memory_flush_s": round(memory_flush_s, 1),
+        "other_s": round(wall_time - sandbox_create_s - pip_install_s - pytest_s - llm_critical_s - memory_flush_s, 1),
     }
 
 
@@ -169,7 +171,10 @@ def run_one(bench_dir: Path, module: str, output_dir: Path, max_retries: int) ->
             "memory_delta": (mem_after - mem_before) if (mem_before is not None and mem_after is not None) else None,
             # Sandbox failures retried inside the executor — NOT in retry_count.
             "infra_failures": final_state.get("infra_failures", 0),
-            "time_breakdown": _time_breakdown(final_state.get("timings") or {}, llm, wall_time),
+            "time_breakdown": _time_breakdown(
+                final_state.get("timings") or {}, llm, wall_time, final_state.get("memory_flush_s", 0.0),
+            ),
+            "memory_unflushed_ops": final_state.get("memory_unflushed_ops", 0),
             "llm_usage": llm,
             "error": None,
         }
@@ -216,7 +221,7 @@ def summarize(results: list[dict]) -> dict:
     avg_breakdown = {
         key: round(mean(b[key] for b in breakdowns), 1)
         for key in ("sandbox_create_s", "pip_install_s", "pytest_s", "llm_total_s",
-                    "llm_critical_s", "upload_s", "infra_backoff_s", "other_s")
+                    "llm_critical_s", "upload_s", "infra_backoff_s", "memory_flush_s", "other_s")
     } if breakdowns else None
     llm_rows = [r["llm_usage"] for r in results if r.get("llm_usage")]
 

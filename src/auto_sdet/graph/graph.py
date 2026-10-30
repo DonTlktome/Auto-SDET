@@ -3,6 +3,7 @@ LangGraph StateGraph assembly — the core FSM orchestration.
 """
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 from langgraph.graph import StateGraph, END
@@ -13,7 +14,7 @@ from auto_sdet.graph.nodes.generator import generator_node
 from auto_sdet.graph.nodes.evaluator import evaluator_node
 from auto_sdet.graph.nodes.executor import executor_node
 from auto_sdet.graph.nodes.reflector import reflector_node
-from auto_sdet.graph.nodes.memory_manager import memory_manager_node
+from auto_sdet.graph.nodes.memory_manager import memory_manager_node, wait_for_pending_memory_ops
 from auto_sdet.graph.router import route_after_executor, route_after_evaluator
 
 console = Console()
@@ -57,7 +58,8 @@ def build_graph() -> StateGraph:
     Memory architecture: Memory-R1 (Lu 2025) style CRUD.
       Reflector emits a candidate trajectory into state.pending_trajectory,
       MemoryManager runs the {ADD, UPDATE, DELETE, NOOP} controller in a
-      background thread (fire-and-forget) — memory ops never block the agent.
+      background thread — memory ops never block the agent's nodes; run_agent()
+      joins outstanding writes before returning so nothing is lost on exit.
     """
     graph = StateGraph(AgentState)
 
@@ -142,6 +144,17 @@ def run_agent(
     console.print("\n[dim]Starting LangGraph FSM...[/]\n")
 
     final_state = app.invoke(initial_state, config={"callbacks": callbacks} if callbacks else None)
+
+    # ── Flush background memory writes ──────────────────
+    # MemoryManager CRUD runs on daemon threads; without this join a CLI exit
+    # could drop the last trajectory, and in a benchmark the next module could
+    # start before the previous module's memory is visible.
+    flush_start = time.time()
+    unflushed = wait_for_pending_memory_ops()
+    final_state["memory_flush_s"] = round(time.time() - flush_start, 1)
+    final_state["memory_unflushed_ops"] = unflushed
+    if unflushed:
+        console.print(f"[bold yellow]⚠ {unflushed} memory operation(s) still running after flush timeout[/]")
 
     # ── Determine final status ──────────────────────────
     execution_result = final_state.get("execution_result")

@@ -52,6 +52,7 @@ BREAKDOWN = [
     ("pytest_s", "pytest 执行"),
     ("llm_total_s", "LLM 调用（全部）"),
     ("llm_critical_s", "LLM 调用（关键路径，不含后台 MemoryManager）"),
+    ("memory_flush_s", "模块结束时等待记忆写入"),
     ("other_s", "其他（图调度 / 嵌入 / 上传 / 退避）"),
 ]
 
