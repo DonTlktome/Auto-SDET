@@ -61,26 +61,8 @@ class MemoryStore:
     which together can take ~1s to load).
     """
 
-    def __init__(
-        self,
-        persist_dir: Optional[Path] = None,
-        space: str = "l2",
-        similarity_threshold: Optional[float] = None,
-    ) -> None:
-        """
-        space="l2" (legacy): Chroma's default squared-L2 index, similarity
-            reported as 1/(1+d) and filtered by SIMILARITY_THRESHOLD.
-        space="cosine" (signature variant): cosine index, similarity = 1 - d,
-            filtered by `similarity_threshold` (calibrated, required).
-        The space is fixed when the collection is first created.
-        """
-        if space not in ("l2", "cosine"):
-            raise ValueError(f"unsupported space: {space!r}")
-        if space == "cosine" and similarity_threshold is None:
-            raise ValueError("cosine space requires an explicit similarity_threshold")
+    def __init__(self, persist_dir: Optional[Path] = None) -> None:
         self._persist_dir = persist_dir or DEFAULT_PERSIST_DIR
-        self._space = space
-        self._threshold = similarity_threshold
         self._client = None       # lazy
         self._collection = None   # lazy
 
@@ -232,16 +214,12 @@ class MemoryStore:
         metadatas = result.get("metadatas", [[]])[0]
         distances = result.get("distances", [[]])[0]
 
-        threshold = SIMILARITY_THRESHOLD if self._threshold is None else self._threshold
         keep: list[MemoryTrajectory] = []
         candidates: list[dict] = []
         for tid, meta, dist in zip(ids, metadatas, distances):
-            if self._space == "cosine":
-                similarity = 1.0 - dist
-            else:
-                # Chroma returns L2 distance by default; smaller = more similar.
-                # Convert to a rough similarity score in [0, 1] for thresholding.
-                similarity = 1.0 / (1.0 + dist)
+            # Chroma returns L2 distance by default; smaller = more similar.
+            # Convert to a rough similarity score in [0, 1] for thresholding.
+            similarity = 1.0 / (1.0 + dist)
             candidate = {
                 "id": tid,
                 "source_module": meta.get("source_module", ""),
@@ -254,7 +232,7 @@ class MemoryStore:
             candidates.append(candidate)
             if len(keep) >= k:
                 continue
-            if similarity < threshold:
+            if similarity < SIMILARITY_THRESHOLD:
                 continue
             if not include_deprecated and meta.get("deprecated", False):
                 continue
@@ -309,12 +287,7 @@ class MemoryStore:
             # Use chroma's default embedding (sentence-transformers
             # all-MiniLM-L6-v2). It's downloaded the first time chroma
             # needs it and cached locally afterward.
-            # Legacy stores keep Chroma's default (l2) metadata-free creation.
-            **({"metadata": {"hnsw:space": "cosine"}} if self._space == "cosine" else {}),
         )
-        actual = (self._collection.metadata or {}).get("hnsw:space", "l2")
-        if actual != self._space:
-            raise ValueError(f"memory store at {self._persist_dir} uses {actual!r}, expected {self._space!r}")
         return self._collection
 
     @staticmethod
@@ -366,12 +339,6 @@ def get_memory_store() -> Optional[MemoryStore]:
     settings = get_settings()
     if not settings.memory_enabled:
         return None
-    if settings.memory_variant == "signature":
-        return MemoryStore(
-            Path(settings.memory_dir),
-            space="cosine",
-            similarity_threshold=settings.memory_cosine_threshold,
-        )
     return MemoryStore(Path(settings.memory_dir))
 
 

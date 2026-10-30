@@ -84,38 +84,12 @@ def memory_manager_node(state: AgentState) -> dict:
         # Nothing to manage (Reflector wasn't run, or it failed before emitting)
         return {}
 
-    if pending.outcome == "pending":
-        # signature variant: whether this fix worked is unknown until the
-        # Executor re-runs pytest — it calls commit_verified_trajectory().
-        console.print(
-            f"[bold blue]🗂  [MemoryManager][/]  "
-            f"Trajectory ({pending.error_classification}) held until pytest re-run verifies the fix"
-        )
-        return {}
-
     console.print(
         f"[bold blue]🗂  [MemoryManager][/]  "
         f"Spawned background CRUD decision for trajectory "
         f"({pending.error_classification})"
     )
-    _spawn_background(pending)
-    return {"pending_trajectory": None}
 
-
-def commit_verified_trajectory(pending: MemoryTrajectory, passed: bool) -> None:
-    """
-    signature variant: record the real outcome of a held trajectory, then run
-    the usual background CRUD decision on it.
-    """
-    verified = pending.model_copy(update={"outcome": "fix_applied" if passed else "fix_failed"})
-    console.print(
-        f"[bold blue]🗂  [MemoryManager][/]  Fix {'verified' if passed else 'did NOT pass'} "
-        f"— committing trajectory as {verified.outcome}"
-    )
-    _spawn_background(verified)
-
-
-def _spawn_background(pending: MemoryTrajectory) -> None:
     # Fire-and-forget. Daemon thread so it doesn't block process exit.
     # ChromaDB handles concurrent writes via SQLite locking under the hood.
     # copy_context() carries the LangChain run config (callbacks, tracing
@@ -130,6 +104,8 @@ def _spawn_background(pending: MemoryTrajectory) -> None:
     with _pending_lock:
         _pending_threads.append(thread)
     thread.start()
+
+    return {"pending_trajectory": None}
 
 
 def _background_process(pending: MemoryTrajectory) -> None:

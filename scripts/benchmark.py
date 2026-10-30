@@ -374,8 +374,7 @@ def build_metadata(args: argparse.Namespace, run_name: str, modules: list[str], 
     if settings.memory_enabled and settings.memory_variant == "legacy":
         memory["similarity"] = {"metric": "1/(1+squared_l2)", "threshold": 0.4, "top_k": 3}
     elif settings.memory_enabled:
-        memory["similarity"] = {"metric": "cosine", "threshold": settings.memory_cosine_threshold, "top_k": 3,
-                                "calibration_file": args.calibration_file.as_posix() if args.calibration_file else None}
+        memory["similarity"] = {"metric": "cosine", "threshold": settings.memory_cosine_threshold, "top_k": 3}
 
     return {
         "run_name": run_name,
@@ -434,22 +433,12 @@ def main() -> None:
     parser.add_argument("--note", default="", help="Free-form note stored in metadata (e.g. concurrency)")
     parser.add_argument("--module-set", choices=["benchmark", "calibration"], default="benchmark",
                         help="calibration = held-out modules for threshold calibration (not benchmark numbers)")
-    parser.add_argument("--cosine-threshold", type=float, default=None,
-                        help="Config C only: calibrated cosine threshold for signature memory")
-    parser.add_argument("--calibration-file", type=Path, default=None,
-                        help="Config C only: calibration report the threshold comes from")
     args = parser.parse_args()
 
     if not args.bench_dir.exists():
         console.print(f"[bold red]Error:[/] bench dir does not exist: {args.bench_dir}")
         console.print("[dim]Hint: clone https://github.com/TheAlgorithms/Python to that path[/]")
         sys.exit(1)
-
-    if CONFIGS[args.config]["env"]["MEMORY_VARIANT"] == "signature":
-        if args.cosine_threshold is None or args.calibration_file is None or not args.calibration_file.exists():
-            console.print("[bold red]Error:[/] config C needs --cosine-threshold and an existing --calibration-file")
-            sys.exit(1)
-        os.environ["MEMORY_COSINE_THRESHOLD"] = str(args.cosine_threshold)
 
     module_list = CALIBRATION_MODULES if args.module_set == "calibration" else BENCH_MODULES
     modules = module_list[: args.limit] if args.limit else module_list
