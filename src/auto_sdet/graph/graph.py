@@ -149,6 +149,10 @@ def run_agent(
         "max_retries": max_retries,
         "error_history": [],
         "infra_failures": 0,
+        "reflector_attempts": 0,
+        "reflector_failed_attempts": 0,
+        "structured_output_failures": {},
+        "evaluator_structured_failures": {},
         "timings": {},
         "status": "generating",
     }

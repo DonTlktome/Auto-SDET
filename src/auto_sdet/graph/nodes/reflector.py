@@ -113,42 +113,46 @@ def reflector_node(state: AgentState) -> dict:
     # runs that ran this node with thinking disabled.
     console.print("[bold magenta]🧠 [Reflector][/]  Generating fix via CoT (structured + thinking)...")
 
-    llm = get_llm(multi_turn_tool_calling=False)   # single-turn → keep thinking ON
-    structured_llm = llm.with_structured_output(ReflectionResult, method="json_mode")
-
     messages = [
         SystemMessage(content=system_prompt),
         HumanMessage(content=user_prompt),
     ]
 
-    # Structured output can fail in two ways that we treat the same:
-    #   1. invoke() raises (provider rejects tool_choice, transport error, etc.)
-    #   2. invoke() returns None (LLM produced empty content / no tool call)
-    # Both mean "no usable fix this turn" — saturate retry_count so the next
-    # router pass reaches end_failed instead of looping on the broken contract.
-    result: ReflectionResult | None = None
-    failure_reason: str | None = None
-    try:
-        result = structured_llm.invoke(messages)
-    except Exception as e:
-        failure_reason = f"invoke raised: {e}"
-    if result is None and failure_reason is None:
-        failure_reason = "invoke returned None (LLM produced no structured output)"
+    # Structured output can fail in two ways:
+    #   1. invoke() raises — most often the response hit max_tokens because
+    #      thinking consumed the budget, so the JSON is cut off; or the JSON
+    #      is malformed / fails schema validation
+    #   2. invoke() returns None (LLM produced empty content)
+    # Recovery: ask once more with thinking DISABLED. Without reasoning tokens
+    # the JSON fits in the budget; the prompt is unchanged.
+    failures: list[dict] = []
+    llm = get_llm(multi_turn_tool_calling=False)   # single-turn → keep thinking ON
+    result = _invoke_structured(llm, messages, failures, thinking=True)
+    if result is None:
+        console.print(
+            f"[bold yellow]⚠ [Reflector][/]  Structured output failed "
+            f"({failures[-1]['kind']}) — retrying once with thinking disabled"
+        )
+        fallback_llm = get_llm(multi_turn_tool_calling=False, disable_thinking=True)
+        result = _invoke_structured(fallback_llm, messages, failures, thinking=False)
+
+    counters = _attempt_counters(state, failures, fix_produced=result is not None)
 
     if result is None:
-        logger.error(f"Structured output unavailable: {failure_reason}")
+        # One failed repair attempt, not a reason to give up: the router
+        # decides whether retries remain. The test code is unchanged, so the
+        # Executor re-runs the same file and the loop continues normally.
+        logger.error(f"Structured output unavailable after recovery: {failures}")
         console.print(
-            f"[bold red]✗ [Reflector][/]  Structured output unavailable: {escape(failure_reason or 'unknown')}"
+            f"[bold red]✗ [Reflector][/]  No usable fix this attempt "
+            f"({', '.join(f['kind'] for f in failures)}) — counted as a failed attempt"
         )
-        console.print(
-            "[bold red]✗ [Reflector][/]  Aborting self-healing loop "
-            "(no point retrying with the same broken contract)"
-        )
-        trace_event("reflection", **trace, fix_produced=False, failure_reason=(failure_reason or "")[:500])
+        trace_event("reflection", **trace, fix_produced=False, structured_failures=failures)
         return {
             "test_code": state["test_code"],
-            "retry_count": max_retries,        # saturate → next router pass goes to end_failed
-            "status": "failed",
+            "retry_count": retry_count + 1,
+            "status": "executing",
+            **counters,
         }
 
     patched_test_code = result.fixed_code
@@ -220,6 +224,7 @@ def reflector_node(state: AgentState) -> dict:
         fix_strategy=result.fix_strategy,
         test_after=clip(patched_test_code),
         pending_trajectory_id=pending_trajectory.trajectory_id if pending_trajectory else None,
+        structured_failures=failures,
     )
 
     # ── Step 7: Return updated state ────────────────────
@@ -228,6 +233,36 @@ def reflector_node(state: AgentState) -> dict:
         "retry_count": retry_count + 1,
         "status": "executing",
         "pending_trajectory": pending_trajectory,
+        **counters,
+    }
+
+
+def _invoke_structured(llm, messages, failures: list[dict], thinking: bool) -> ReflectionResult | None:
+    """Invoke the json_mode structured LLM; on failure record why and return None."""
+    structured_llm = llm.with_structured_output(ReflectionResult, method="json_mode")
+    try:
+        result = structured_llm.invoke(messages)
+    except Exception as e:
+        detail = f"{type(e).__name__}: {e}"
+        kind = "truncated" if "length limit" in detail or "LengthFinishReason" in detail else "parse_error"
+        failures.append({"thinking": thinking, "kind": kind, "detail": detail[:300]})
+        return None
+    if result is None:
+        failures.append({"thinking": thinking, "kind": "empty", "detail": "invoke returned None"})
+    return result
+
+
+def _attempt_counters(state: AgentState, failures: list[dict], fix_produced: bool) -> dict:
+    """Running per-module totals of repair attempts and structured-output failures."""
+    so_failures = dict(state.get("structured_output_failures") or {})
+    for f in failures:
+        so_failures[f["kind"]] = so_failures.get(f["kind"], 0) + 1
+    if failures and fix_produced:
+        so_failures["recovered_with_thinking_off"] = so_failures.get("recovered_with_thinking_off", 0) + 1
+    return {
+        "reflector_attempts": state.get("reflector_attempts", 0) + 1,
+        "reflector_failed_attempts": state.get("reflector_failed_attempts", 0) + (0 if fix_produced else 1),
+        "structured_output_failures": so_failures,
     }
 
 

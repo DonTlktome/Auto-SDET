@@ -19,7 +19,7 @@ DEFAULT_TEMPERATURE = 0.0
 DEFAULT_MAX_TOKENS = 16384
 
 
-def get_llm(multi_turn_tool_calling: bool = False) -> BaseChatModel:
+def get_llm(multi_turn_tool_calling: bool = False, disable_thinking: bool = False) -> BaseChatModel:
     """
     Build a chat model instance for the configured LLM provider.
 
@@ -36,6 +36,9 @@ def get_llm(multi_turn_tool_calling: bool = False) -> BaseChatModel:
                 (Reflector, Evaluator, MemoryManager) — these use `response_format`
                 rather than `tool_choice`, which deepseek-reasoner supports fine
               - any plain `invoke()` caller with no tool calling
+        disable_thinking: force thinking off for a single-turn caller. Used by
+            the Reflector's recovery request after a structured-output failure
+            (thinking can exhaust max_tokens before the JSON is complete).
 
     Raises:
         ValueError: required API key for the selected provider is missing.
@@ -60,7 +63,7 @@ def get_llm(multi_turn_tool_calling: bool = False) -> BaseChatModel:
         # across turns and the API returns 400 on the second turn. Single-turn
         # structured-output callers don't hit this because they only need one
         # round-trip; they should keep thinking enabled.
-        thinking_mode = "disabled" if multi_turn_tool_calling else "enabled"
+        thinking_mode = "disabled" if (multi_turn_tool_calling or disable_thinking) else "enabled"
         return ChatDeepSeek(
             model=settings.deepseek_model,
             api_key=settings.deepseek_api_key.get_secret_value(),
@@ -124,6 +127,7 @@ def describe_llm_config() -> dict:
             "evaluator": "enabled",
             "reflector": "enabled",
             "memory_manager": "enabled",
+            "reflector_recovery": "disabled",
         }
     return {
         "provider": provider,
@@ -131,6 +135,10 @@ def describe_llm_config() -> dict:
         "temperature": DEFAULT_TEMPERATURE,
         "max_tokens": DEFAULT_MAX_TOKENS,
         "thinking": thinking,
+        "reflector_structured_failure_policy": (
+            "one recovery request with thinking disabled; if that also fails the "
+            "attempt counts as a failed repair and the loop continues (no saturation)"
+        ),
     }
 
 

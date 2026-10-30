@@ -194,6 +194,11 @@ def run_one(bench_dir: Path, module: str, output_dir: Path, max_retries: int) ->
                 final_state.get("timings") or {}, llm, wall_time, final_state.get("memory_flush_s", 0.0),
             ),
             "memory_unflushed_ops": final_state.get("memory_unflushed_ops", 0),
+            # retry_count counts loop iterations; these say what actually happened in them.
+            "reflector_attempts": final_state.get("reflector_attempts", 0),
+            "reflector_failed_attempts": final_state.get("reflector_failed_attempts", 0),
+            "structured_output_failures": final_state.get("structured_output_failures") or {},
+            "evaluator_structured_failures": final_state.get("evaluator_structured_failures") or {},
             "llm_usage": llm,
             "error": None,
         }
@@ -261,6 +266,15 @@ def summarize(results: list[dict]) -> dict:
         "avg_wall_time_s": round(mean(times), 1),
         # Sandbox-side failures: retried, never counted as agent retries.
         "total_infra_failures": sum(r.get("infra_failures", 0) for r in results),
+        "total_reflector_attempts": sum(r.get("reflector_attempts", 0) for r in results),
+        "total_reflector_failed_attempts": sum(r.get("reflector_failed_attempts", 0) for r in results),
+        "total_reflector_truncated": sum((r.get("structured_output_failures") or {}).get("truncated", 0) for r in results),
+        "total_reflector_parse_errors": sum(
+            (r.get("structured_output_failures") or {}).get(k, 0) for r in results for k in ("parse_error", "empty")),
+        "total_reflector_recovered": sum(
+            (r.get("structured_output_failures") or {}).get("recovered_with_thinking_off", 0) for r in results),
+        "total_evaluator_structured_failures": sum(
+            sum((r.get("evaluator_structured_failures") or {}).values()) for r in results),
         "infra_failed_modules": sum(1 for r in results if r["status"] == "infra_failed"),
         "avg_time_breakdown_s": avg_breakdown,
         "total_llm_calls": sum(u["calls"] for u in llm_rows),
@@ -325,6 +339,12 @@ def print_summary(summary: dict) -> None:
     table.add_row("Avg coverage", f"{avg_cov}%" if avg_cov is not None else "-")
     table.add_row("Avg wall time per module", f"{summary['avg_wall_time_s']}s")
     table.add_row("Sandbox infra failures (retried)", str(summary.get("total_infra_failures", 0)))
+    table.add_row(
+        "Reflector attempts (failed) / truncated / parse errors / recovered",
+        f"{summary.get('total_reflector_attempts', 0)} ({summary.get('total_reflector_failed_attempts', 0)}) / "
+        f"{summary.get('total_reflector_truncated', 0)} / {summary.get('total_reflector_parse_errors', 0)} / "
+        f"{summary.get('total_reflector_recovered', 0)}",
+    )
     table.add_row("Modules ended by infra failure", str(summary.get("infra_failed_modules", 0)))
     breakdown = summary.get("avg_time_breakdown_s")
     if breakdown:

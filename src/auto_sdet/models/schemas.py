@@ -341,6 +341,10 @@ class AgentState(TypedDict, total=False):
 
     # ── Observability ───────────────────────────────────
     infra_failures: int                   # Sandbox attempts that failed and were retried (not in retry_count)
+    reflector_attempts: int               # Reflector invocations (successful or not)
+    reflector_failed_attempts: int        # Attempts that produced no usable fix
+    structured_output_failures: dict[str, int]    # Reflector: truncated / parse_error / empty / recovered_with_thinking_off
+    evaluator_structured_failures: dict[str, int]  # Evaluator: truncated / parse_error (falls through to Executor)
     timings: dict[str, int]               # Summed executor time breakdown in ms (see ExecutionResult)
     status: Literal[
         "generating",

@@ -120,8 +120,13 @@ def evaluator_node(state: AgentState) -> dict:
             f"[bold yellow]⚠ [Evaluator][/]  Failed to score "
             f"({escape(failure_reason or 'unknown')[:80]}…) — falling through to Executor"
         )
+        # Counted for the benchmark report (truncation vs other parse errors).
+        evaluator_failures = dict(state.get("evaluator_structured_failures") or {})
+        kind = "truncated" if "length limit" in (failure_reason or "") else "parse_error"
+        evaluator_failures[kind] = evaluator_failures.get(kind, 0) + 1
         return {
             "evaluation_result": None,
+            "evaluator_structured_failures": evaluator_failures,
             "status": "executing",
         }
 

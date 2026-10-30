@@ -41,6 +41,12 @@ METRICS = [
     ("avg_retries", "平均重试次数"),
     ("avg_coverage_pct", "平均覆盖率 %（通过的模块）"),
     ("avg_wall_time_s", "单模块平均耗时 s"),
+    ("total_reflector_attempts", "Reflector 实际修复尝试次数"),
+    ("total_reflector_failed_attempts", "其中未产出可用修复的尝试"),
+    ("total_reflector_truncated", "Reflector 截断次数（max_tokens 用尽）"),
+    ("total_reflector_parse_errors", "Reflector 其他解析失败次数"),
+    ("total_reflector_recovered", "关闭 thinking 重新请求后恢复的次数"),
+    ("total_evaluator_structured_failures", "Evaluator 结构化输出失败次数"),
     ("total_infra_failures", "基础设施故障次数（已重试）"),
     ("infra_failed_modules", "因基础设施故障结束的模块数"),
     ("total_llm_calls", "LLM 调用次数"),
@@ -126,6 +132,10 @@ def _stats(values: list[float]) -> dict:
 
 
 def aggregate_config(runs: list[dict], prices: dict) -> dict:
+    models = sorted({r["metadata"]["llm"]["model"] for r in runs})
+    commits = sorted({r["metadata"]["git_commit"] for r in runs})
+    if len(models) > 1:
+        raise SystemExit(f"refusing to pool runs from different models: {models}")
     per_run = []
     for run in sorted(runs, key=lambda r: r["_run_index"]):
         s = dict(run["summary"])
@@ -135,7 +145,7 @@ def aggregate_config(runs: list[dict], prices: dict) -> dict:
     agg["time_breakdown_s"] = {
         key: _stats([(r.get("avg_time_breakdown_s") or {}).get(key) for r in per_run]) for key, _ in BREAKDOWN
     }
-    return {"n_runs": len(per_run), "runs": per_run, "metrics": agg}
+    return {"n_runs": len(per_run), "model": models[0], "git_commits": commits, "runs": per_run, "metrics": agg}
 
 
 def paired_tests(x_runs: list[dict], y_runs: list[dict]) -> dict:
@@ -184,6 +194,10 @@ def _fmt(stat: dict) -> str:
 def render_markdown(report: dict) -> str:
     configs = sorted(report["configs"])
     lines = ["# Benchmark summary", "", "均值（最小–最大），每组 n 次运行。", ""]
+    for c in configs:
+        cfg = report["configs"][c]
+        lines.append(f"- {c}: 模型 `{cfg['model']}`，commit {', '.join(x[:7] for x in cfg['git_commits'])}")
+    lines.append("")
     lines.append("| 指标 | " + " | ".join(f"{c} (n={report['configs'][c]['n_runs']})" for c in configs) + " |")
     lines.append("|---|" + "---|" * len(configs))
     for key, label in METRICS:
