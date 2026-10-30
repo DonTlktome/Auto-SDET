@@ -16,6 +16,7 @@ from auto_sdet.tools.mcp_context import MCPContextManager
 from auto_sdet.tools.mcp_tools import GENERATOR_TOOLS, execute_tool_call
 from auto_sdet.tools.llm_factory import get_llm, get_provider_label
 from auto_sdet.prompts.generator import GENERATOR_SYSTEM_PROMPT
+from auto_sdet.tools.run_trace import trace_event
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -24,18 +25,40 @@ console = Console()
 # decides to read every file in sight. 6 is enough for typical 1-3 deps.
 MAX_TOOL_ITERATIONS = 6
 
+# DeepSeek V4 occasionally answers with its native tool-call envelope as plain
+# content (observed: a hallucinated file-writing call whose parameter is the
+# whole test file), e.g. `<｜DSML｜invoke ...><｜DSML｜parameter ...>CODE</｜DSML｜parameter>`.
+# The API can't map it to a declared tool, so it arrives as text.
+_DSML_PARAMETER = re.compile(
+    r"<[｜|]+DSML[｜|]+parameter[^>]*>(.*?)</[｜|]+DSML[｜|]+parameter>", re.DOTALL,
+)
+_DSML_TAG = re.compile(r"</?[｜|]+DSML[｜|]+[^>]*>")
+
+
+def has_dsml_markup(text: str) -> bool:
+    return bool(_DSML_TAG.search(text))
+
 
 def extract_python_code(text: str) -> str:
     """
     Extract Python code from an LLM response.
 
     Strategy:
+    0. If the response is a DSML tool-call envelope, unwrap it: keep the
+       longest parameter body and drop the markup tags.
     1. Prefer ```python ... ``` fenced code blocks (largest one wins).
     2. If no fence is found, try to salvage by trimming prose before the
        first plausible Python construct (import / def / class / from).
        This handles V4-style responses that mix narration with code.
     3. As a last resort return the raw text.
     """
+    if has_dsml_markup(text):
+        logger.warning("DSML tool-call markup found in LLM content, unwrapping")
+        params = _DSML_PARAMETER.findall(text)
+        if params:
+            text = max(params, key=len)
+        text = _DSML_TAG.sub("", text)
+
     pattern = r"```(?:python)?\s*\n(.*?)```"
     matches = re.findall(pattern, text, re.DOTALL)
 
@@ -141,7 +164,15 @@ def generator_node(state: AgentState) -> dict:
         final_response = llm.invoke(messages)
 
     # ── Extract code ──────────────────────────────────────
-    test_code = extract_python_code(final_response.content)
+    raw_content = final_response.content
+    test_code = extract_python_code(raw_content)
+    trace_event(
+        "generation",
+        module=state.get("module_id"),
+        dsml_markup=has_dsml_markup(raw_content),
+        fenced="```" in raw_content,
+        files_read=len(files_read),
+    )
 
     # ── Reconstruct source_code + context_files for downstream nodes ──
     # The Executor expects state["source_code"] (the target file content)

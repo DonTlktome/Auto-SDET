@@ -45,6 +45,7 @@ def analyze_run(run_dir: Path) -> dict:
     executions = {(e["module"], e["retry"]): e for e in events if e["kind"] == "execution"}
     reflections = [e for e in events if e["kind"] == "reflection"]
     memory_ops = [e for e in events if e["kind"] == "memory_op"]
+    generations = [e for e in events if e["kind"] == "generation"]
 
     rows = []
     for r in reflections:
@@ -110,6 +111,8 @@ def analyze_run(run_dir: Path) -> dict:
 
     return {
         "run_dir": run_dir.as_posix(),
+        "generations": len(generations),
+        "generations_with_dsml_markup": sum(1 for g in generations if g.get("dsml_markup")),
         "reflections": len(rows),
         "by_trigger": dict(Counter(x["trigger"] for x in rows)),
         "memory_ops": dict(Counter(e["operation"] for e in memory_ops)),
@@ -133,6 +136,7 @@ def main() -> None:
     report = [analyze_run(d) for d in args.run_dirs]
     for r in report:
         print(f"\n== {r['run_dir']}")
+        print(f"  generations: {r['generations']} (DSML markup leaked: {r['generations_with_dsml_markup']})")
         print(f"  reflections: {r['reflections']}  by trigger: {r['by_trigger']}  memory ops: {r['memory_ops']}")
         print(f"  fix rate | any injected: {r['fix_rate_with_any_injected']}")
         print(f"           | cross-module injected: {r['fix_rate_with_cross_module_injected']}")

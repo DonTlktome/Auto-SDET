@@ -182,3 +182,56 @@ def test_indented_import_not_matched_as_start():
     result = extract_python_code(text)
     # Falls through to raw-text — full text is returned trimmed
     assert "Some prose here." in result
+
+
+# ── Tier 0: DeepSeek DSML tool-call envelope leaked into content ──────
+
+_DSML_CODE = (
+    "import math\n"
+    "\n"
+    "def test_sqrt_not_called():\n"
+    '    assert calls == [], "math.sqrt should not be called for 2 or 3"'
+)
+
+
+def test_dsml_envelope_unwrapped_to_parameter_body():
+    """A hallucinated write-file call: the code lives in the longest parameter."""
+    text = (
+        "I have all the context needed.\n"
+        "<｜｜DSML｜｜tool_calls>\n"
+        '<｜｜DSML｜｜invoke name="write_file">\n'
+        '<｜｜DSML｜｜parameter name="path" string="true">test_prime_check.py</｜｜DSML｜｜parameter>\n'
+        f'<｜｜DSML｜｜parameter name="content" string="true">{_DSML_CODE}\n'
+        "</｜｜DSML｜｜parameter>\n"
+        "</｜｜DSML｜｜invoke>\n"
+        "</｜｜DSML｜｜tool_calls>"
+    )
+    result = extract_python_code(text)
+    assert result == _DSML_CODE
+    assert "DSML" not in result
+
+
+def test_dsml_trailing_tags_only_are_stripped():
+    """Observed in the 2026-10-30 smoke run: code followed by bare closing tags."""
+    text = (
+        f"{_DSML_CODE}\n"
+        "</｜｜DSML｜｜parameter>\n"
+        "</｜｜DSML｜｜invoke>\n"
+        "</｜｜DSML｜｜tool_calls>"
+    )
+    result = extract_python_code(text)
+    assert result == _DSML_CODE
+
+
+def test_dsml_single_bar_variant():
+    text = f"<｜DSML｜parameter name=\"content\">{_DSML_CODE}</｜DSML｜parameter>"
+    assert extract_python_code(text) == _DSML_CODE
+
+
+def test_dsml_wrapping_a_fenced_block():
+    text = (
+        '<｜｜DSML｜｜parameter name="content">```python\n'
+        f"{_DSML_CODE}\n"
+        "```</｜｜DSML｜｜parameter>"
+    )
+    assert extract_python_code(text) == _DSML_CODE
