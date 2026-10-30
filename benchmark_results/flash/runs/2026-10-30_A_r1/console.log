@@ -1,0 +1,1929 @@
+
+Run 2026-10-30_A_r1: 19 modules — 5-node FSM + ruff dual-source gate + 
+asymmetric routing + Memory-R1 memory (legacy retrieval), empty store
+
+
+(1/19) maths/prime_check.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\maths\\prime_check.py'})
+✓ [Generator]  Generated test_prime_check.py (177 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.92 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.95
+  ├─ mock correctness:  0.90
+  └─ code consistency:  0.82
+  Intentionally skipped (anti-gaming):
+    • if __name__ == "__main__": unittest.main() — CLI/runner entrypoint, not a
+unit under test
+    • class Test(unittest.TestCase) in the source — embedded self-tests of the 
+module, not application logic to be re-tested
+  Actionable weaknesses:
+    •  `test_is_prime_uses_sqrt_bound` docstring claims it verifies behaviour 
+'with a mocked math.sqrt', but no mock exists; `assert math.isqrt(101) == 10` 
+tests the stdlib, not the SUT, and the real sqrt-bound behaviour is already 
+covered by the separate spy test.
+    •  `sys.path.insert(0, str(Path(__file__).resolve().parent))` assumes the 
+test file is co-located with `prime_check.py`; if the harness relocates tests, 
+the import fails and every test errors at collection.
+    •  Name/semantics mismatch: `test_is_prime_raises_for_bool_is_not_checked` 
+asserts that no exception is raised — the `raises` prefix is misleading and 
+will confuse failure triage.
+    •  Redundant duplication: `is_prime(0)` is asserted in both 
+`test_is_prime_returns_false_for_zero_and_one` and 
+`test_is_prime_accepts_zero_as_int_not_raising`; products `2*2, 2*3, 3*3, 3*5` 
+appear in both the composites parametrization and the products parametrization.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox ixjn77mdkkk2z72zlgdnu | exit_code=0 | 5115ms (create 587
+/ pip 1814 / pytest 1127)
+✓ [Executor]  All tests passed!  Coverage: 47%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_A_r1\tests\test_maths__prime_check.py
+
+(2/19) maths/fibonacci.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\maths\\fibonacci.py'})
+✓ [Generator]  Generated test_fibonacci.py (461 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.94 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.90
+  ├─ mock correctness:  0.95
+  └─ code consistency:  0.95
+  Intentionally skipped (anti-gaming):
+    • `if __name__ == "__main__":` block — CLI/benchmark entrypoint that runs 
+doctests and timing loops; not unit-testable without covering print/benchmark 
+logic.
+  Actionable weaknesses:
+    •  `test_time_func_prints_millisecond_branch` depends on real wall-clock 
+timing; a slow CI runner could push the elapsed time over 1 second and flip the
+output branch.
+    •  The test file manipulates `sys.path` based on `Path(__file__).parent`, 
+which only works if the test is colocated with `fibonacci.py`; running from a 
+different layout will break the import.
+    •  `test_fib_binet_boundary_1474_is_allowed` checks only length and the 
+first two values, so a regression in the final (largest) value at the boundary 
+would not be caught.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox im34v2k28end4yz2s43j4 | exit_code=1 | 5132ms (create 369
+/ pip 1943 / pytest 2075)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 120 items
+
+test_fibonacci.py::test_time_func_returns_wrapped_output PASSED          [  0%]
+test_fibonacci.py::test_time_func_passes_kwargs PASSED                   [  1%]
+test_fibonacci.py::test_time_func_print
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  No similar past cases in memory (total memory size: 0)
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: AssertionError
+  ├─ root cause:    fib_matrix_np(100) uses numpy int64 matrices which overflow
+beyond F(92) (~7.5e18 < 2^63), so it cannot produce the exact 21-digit F(100); 
+the test asserts an unreachable exact value instead of respecting the source's 
+int64 limitation.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [401, 402, 403]
+🧠 [Reflector]  Changes made:
+@@ -400,6 +400,12 @@
+-    """Matrix exponentiation must handle a large n exactly."""
+-    assert fib_matrix_np(100) == 354224848179261915075
++    """Matrix exponentiation must return exact values up to the int64 limit.
++
++    The implementation uses numpy's default integer dtype (int64), so results
++    are only exact while they fit in a signed 64-bit integer. F(92) is the
++    largest Fibonacci number that fits in int64 (it stays below 2**63 - 1);
++    F(93) and beyond overflow, so we anchor the exact-value check at n == 92.
++    """
++    assert fib_matrix_np(92) == 7540113804746346429
+@@ -459,3 +465,3 @@
+-    assert "mock_func" in capsys.readouterr().out
++    assert "mock_func" in capsys.readouterr().out
+✓ [Reflector]  Patch applied, re-executing...
+🗂  [MemoryManager]  Spawned background CRUD decision for trajectory 
+(AssertionError)
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+🗂  [MemoryManager bg]  No neighbors → direct ADD (cold-path short-circuit)
+⚡ [Executor]  Sandbox ic6jeph6etzee7v68kde3 | exit_code=0 | 4470ms (create 552
+/ pip 1644 / pytest 1504)
+✓ [Executor]  All tests passed!  Coverage: 88%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_A_r1\tests\test_maths__fibonacci.py
+
+(3/19) maths/factorial.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\maths\\factorial.py'})
+✓ [Generator]  Generated test_factorial.py (181 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.86 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.90
+  ├─ mock correctness:  0.85
+  └─ code consistency:  0.68
+  Intentionally skipped (anti-gaming):
+    • factorial.py `if __name__ == "__main__":` block (doctest.testmod() + 
+input()/print) — CLI entrypoint driven by interactive input(); not 
+unit-testable in the ordinary sense, so it should not count toward the coverage
+denominator (the generated file nevertheless exercises it via runpy, which is 
+extraneous rather than harmful).
+  Actionable weaknesses:
+    •  `from unittest.mock import patch` is imported but never used (ruff 
+F401).
+    •  Three tests (`test_main_block_prints_factorial`, 
+`test_main_block_defaults_to_zero_on_empty_input`, `test_doctests_pass`) 
+exercise the `__main__` CLI entrypoint via `runpy.run_module(..., 
+run_name='__main__')`, which is outside unit-test scope and adds 
+import-loop/runtime fragility for no logical coverage gain.
+    •  `test_factorial_rejects_non_numeric_string` asserts a union 
+`pytest.raises((TypeError, ValueError))`, so it would pass under two different 
+(and semantically different) failure modes.
+    •  `test_main_block_prints_factorial` only asserts the substring `"120"` in
+captured output, which is an imprecise check that could match unrelated digits 
+in the doctest output.
+    •  Module-level `sys.path.insert(0, str(Path(__file__).resolve().parent))` 
+mutates global interpreter state and duplicates what a conftest.py/rootdir 
+insertion would do.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox iyrq28f5xzi1gq3dgl4mm | exit_code=1 | 4878ms (create 320
+/ pip 2121 / pytest 1190)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 46 items
+
+test_factorial.py::test_factorial_known_values[0-1] PASSED               [  2%]
+test_factorial.py::test_factorial_known_values[1-1] PASSED               [  4%]
+test_factorial.py::test_factorial_known_
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Retrieved 1 similar past case(s) from episodic memory (total: 
+1)
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: TypeError
+  ├─ root cause:    The source's `factorial()` validates integrality with 
+`number != int(number)` so `factorial(5.0)` passes the check but then crashes 
+on `range(1, number + 1)` because `range` cannot take a float, so the test's 
+assumption that integral floats are accepted is wrong.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [73, 74, 75, 76]
+🧠 [Reflector]  Changes made:
+@@ -72,7 +72,13 @@
+-def test_factorial_accepts_integral_float():
+-    """Edge case: a float with an integral value passes the integrality 
+check."""
+-    assert factorial(5.0) == 120
++def test_factorial_integral_float_raises_type_error():
++    """An integral float passes the value check but fails on `range()`.
++
++    The implementation compares against ``int(number)`` and then iterates with
++    ``range(1, number + 1)``, which requires an ``int``.  An integral float
++    such as ``5.0`` therefore reaches ``range()`` and raises ``TypeError``.
++    """
++    with pytest.raises(TypeError):
++        factorial(5.0)
+@@ -179,3 +185,3 @@
+-    assert results.failed == 0
++    assert results.failed == 0
+✓ [Reflector]  Patch applied, re-executing...
+🗂  [MemoryManager]  Spawned background CRUD decision for trajectory (TypeError)
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+🗂  [MemoryManager]  ADD: persisted as new trajectory (memory now: 2 live)
+   reason: The only retrieved neighbor concerns numpy int64 overflow in a 
+fibonacci matrix implementation, which is an entirely different root cause and 
+failure mechanism than the new trajectory's float-passed-to-range TypeError in 
+factorial(), so the new pattern is novel and warrants its own entry.
+⚡ [Executor]  Sandbox iy9nv8jq4tzw62zvtsram | exit_code=0 | 6708ms (create 931
+/ pip 2668 / pytest 1150)
+✓ [Executor]  All tests passed!  Coverage: 100%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_A_r1\tests\test_maths__factorial.py
+
+(4/19) maths/gcd_of_n_numbers.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\maths\\gcd_of_n_numbers.py'}
+)
+✓ [Generator]  Generated test_gcd_of_n_numbers.py (147 lines, 1 file(s) read 
+via tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.87 (PASS)
+  ├─ testable coverage: 0.95
+  ├─ assertion quality: 0.70
+  ├─ mock correctness:  1.00
+  └─ code consistency:  0.85
+  Intentionally skipped (anti-gaming):
+    • if __name__ == "__main__" block — CLI/demo entrypoint that just prints a 
+single call result; no branching, no return value, not unit-testable
+    • interactive/print wrappers — none present beyond the __main__ guard
+  Actionable weaknesses:
+    •  test_get_factors_accepts_prepopulated_counter asserts Counter({2: 2}) 
+but get_factors(4, factors=Counter({2: 1})) actually returns Counter({2: 3}) — 
+the seed counter is mutated at both the 4%2 step and the number==factor break 
+condition, so this test will fail
+    •  test_get_greatest_common_divisor_no_arguments_raises uses a bare 
+pytest.raises(Exception) with no message match and relies on an undocumented 
+ValueError from star-unpacking an empty map
+    •  Ruff E501 line-too-long at line 125 (89 > 88 chars) in the 
+pytest.raises(match=...) line
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox ivh8i48ubwpruq9nn71yj | exit_code=1 | 6566ms (create 339
+/ pip 2588 / pytest 1741)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 38 items
+
+test_gcd_of_n_numbers.py::test_get_factors_happy_path[45-expected0] PASSED [  
+2%]
+test_gcd_of_n_numbers.py::test_get_factors_happy_path[2520-expected1] PASSED [ 
+5%]
+test_gcd_of_n_numbers.py::test_get
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Retrieved 2 similar past case(s) from episodic memory (total: 
+2)
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: AssertionError
+  ├─ root cause:    get_factors mutates and returns the caller-supplied 
+Counter, so seeding it with Counter({2: 1}) and factoring 4 adds two more 
+powers of 2 (plus the break-condition increment), producing Counter({2: 3}) 
+rather than Counter({2: 2}).
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [52, 53, 54]
+🧠 [Reflector]  Changes made:
+@@ -52,5 +52,8 @@
+-    assert result == Counter({2: 2})
++    # The supplied Counter is used as-is, so its existing counts accumulate:
++    # 1 (seed) + 1 (4 // 2 == 2 step) + 1 (break condition at number == 
+factor).
++    assert result == Counter({2: 3})
++    assert result is seed
+@@ -145,3 +148,3 @@
+-    assert gcd == 24
++    assert gcd == 24
+✓ [Reflector]  Patch applied, re-executing...
+🗂  [MemoryManager]  Spawned background CRUD decision for trajectory 
+(AssertionError)
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+🗂  [MemoryManager]  ADD: persisted as new trajectory (memory now: 3 live)
+   reason: The new trajectory describes a distinct failure mode 
+(caller-supplied Counter is mutated and returned, so assertions must account 
+for accumulated counts and identity) that shares only a superficial 'test made 
+a wrong assumption about source behavior' theme with the retrieved neighbors, 
+which cover unrelated numeric-type/overflow issues in different files, so no 
+neighbor should be updated or deprecated.
+⚡ [Executor]  Sandbox i6tullthrjh1rfb0477q3 | exit_code=0 | 4236ms (create 310
+/ pip 1645 / pytest 1006)
+✓ [Executor]  All tests passed!  Coverage: 97%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_A_r1\tests\test_maths__gcd_of_n_numbers
+.py
+
+(5/19) maths/sigmoid.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\maths\\sigmoid.py'})
+✓ [Generator]  Generated test_sigmoid.py (144 lines, 1 file(s) read via tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.98 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.95
+  ├─ mock correctness:  1.00
+  └─ code consistency:  0.95
+  Intentionally skipped (anti-gaming):
+    • module-level `if __name__ == "__main__":` doctest runner — CLI/doctest 
+harness, not unit-testable
+  Actionable weaknesses:
+    •  Minor redundancy: 2-D input shape is checked in both 
+test_preserves_input_shape and test_two_dimensional_input
+    •  Large-negative-input tests may emit a NumPy RuntimeWarning from exp 
+overflow under strict warning configurations
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox ivdztujm0kteyhxpfnoq0 | exit_code=1 | 4507ms (create 284
+/ pip 2182 / pytest 1358)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 29 items
+
+test_sigmoid.py::TestSigmoidHappyPath::test_matches_documented_doctest_example 
+PASSED [  3%]
+test_sigmoid.py::TestSigmoidHappyPath::test_single_zero_returns_half PASSED [  
+6%]
+test_sigmoid.py::TestSig
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Retrieved 2 similar past case(s) from episodic memory (total: 
+3)
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: AssertionError
+  ├─ root cause:    np.linspace(-50.0, 50.0, 1000) has an even number of 
+points, so index 500 is not exactly 0.0 but 100/999*500-50 = 0.05005..., whose 
+sigmoid is 0.51251 rather than the asserted 0.5.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [138, 144]
+🧠 [Reflector]  Changes made:
+@@ -137,8 +137,10 @@
+-        vector = np.linspace(-50.0, 50.0, 1000)
++        # Use an odd number of points so the midpoint is exactly 0.0.
++        vector = np.linspace(-50.0, 50.0, 1001)
+-        np.testing.assert_allclose(result[500], 0.5, atol=1e-12)
++        assert vector[500] == 0.0
++        np.testing.assert_allclose(result[500], 0.5, atol=1e-12)
+✓ [Reflector]  Patch applied, re-executing...
+🗂  [MemoryManager]  Spawned background CRUD decision for trajectory 
+(AssertionError)
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+🗂  [MemoryManager]  ADD: persisted as new trajectory (memory now: 4 live)
+   reason: The new trajectory describes a floating-point midpoint/precision 
+pitfall in np.linspace (even sample count yields a non-zero midpoint), which is
+unrelated to the neighbors' int64 overflow, float-integrality TypeError, and 
+Counter-mutation patterns.
+⚡ [Executor]  Sandbox iqc9m4vqwodflxf2d358i | exit_code=0 | 4191ms (create 302
+/ pip 1994 / pytest 1258)
+✓ [Executor]  All tests passed!  Coverage: 67%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_A_r1\tests\test_maths__sigmoid.py
+
+(6/19) sorts/bubble_sort.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\sorts\\bubble_sort.py'})
+✓ [Generator]  Generated test_bubble_sort.py (244 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.65 (WARN)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.85
+  ├─ mock correctness:  0.25
+  └─ code consistency:  0.85
+  Intentionally skipped (anti-gaming):
+    • if __name__ == "__main__" benchmark/doctest block — CLI entrypoint + 
+timing benchmark, not unit-testable
+    • Docstring doctest examples — already embedded in source docstrings, 
+exercised via doctest not pytest (and partial duplication of covered cases)
+  Actionable weaknesses:
+    •  test_recursive_recurses_for_unsorted_input patches the wrong target: 
+patch.object(sys.modules[__name__], ...) mutates the test module's global, but 
+the recursive call resolves bubble_sort_recursive in the bubble_sort module's 
+globals, so the spy is only invoked once. The assertion `spy.call_count > 1` 
+fails deterministically.
+    •  test_recursive_returns_immediately_when_already_sorted uses the same 
+incorrect patch target; it passes only by coincidence (sorted input never 
+recurses, so call_count is 1 regardless), meaning it does not actually verify 
+the intended early-return behavior.
+    •  test_mock_used_to_isolate_comparison_side_effects constructs a MagicMock
+with __len__ == 0 and only asserts identity on an empty collection. It 
+exercises nothing beyond the already-covered empty-list case and adds a 
+misleading 'mock sanity' test.
+    •  test_does_not_change_length only checks list length after sorting, which
+is a weak assertion (any permutation of the same length passes).
+    •  test_iterative_early_exit_on_sorted_input couples to the exact 
+comparison count (== 9), which is brittle if the implementation's pass 
+structure changes.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox ie4793ccry1aft3yzexcq | exit_code=1 | 4308ms (create 282
+/ pip 1773 / pytest 999)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 49 items
+
+test_bubble_sort.py::test_sorts_unsorted_integers[bubble_sort_iterative] PASSED
+[  2%]
+test_bubble_sort.py::test_sorts_unsorted_integers[bubble_sort_recursive] PASSED
+[  4%]
+test_bubble_sort.py::test_
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Retrieved 3 similar past case(s) from episodic memory (total: 
+4)
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: AssertionError
+  ├─ root cause:    The test patches `bubble_sort_recursive` in the *test* 
+module's namespace, but the recursion inside bubble_sort.py resolves its own 
+module-global `bubble_sort_recursive`, so the spy is only ever invoked once and
+`call_count` stays at 1.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [219, 220, 221, 226]
+🧠 [Reflector]  Changes made:
+@@ -11,4 +11,5 @@
++import bubble_sort  # noqa: E402
+@@ -209,5 +210,5 @@
+-        sys.modules[__name__], "bubble_sort_recursive", 
+wraps=bubble_sort_recursive
++        bubble_sort, "bubble_sort_recursive", wraps=bubble_sort_recursive
+@@ -220,5 +221,5 @@
+-        sys.modules[__name__], "bubble_sort_recursive", 
+wraps=bubble_sort_recursive
++        bubble_sort, "bubble_sort_recursive", wraps=bubble_sort_recursive
+@@ -242,3 +243,3 @@
+-    assert bubble_sort_recursive(fake) is fake
++    assert bubble_sort_recursive(fake) is fake
+✓ [Reflector]  Patch applied, re-executing...
+🗂  [MemoryManager]  Spawned background CRUD decision for trajectory 
+(AssertionError)
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+🗂  [MemoryManager]  ADD: persisted as new trajectory (memory now: 5 live)
+   reason: The new trajectory describes a mock-patching namespace issue 
+(patching the test module instead of the source module, so recursion bypasses 
+the spy), which is a distinct failure category from all three neighbors 
+(Counter mutation aliasing, even-point linspace midpoint, and numpy int64 
+overflow).
+⚡ [Executor]  Sandbox iklp6ip4tsdtgdvrcbd2g | exit_code=0 | 4851ms (create 311
+/ pip 2134 / pytest 1172)
+✓ [Executor]  All tests passed!  Coverage: 58%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_A_r1\tests\test_sorts__bubble_sort.py
+
+(7/19) sorts/quick_sort.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\sorts\\quick_sort.py'})
+✓ [Generator]  Generated test_quick_sort.py (180 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.73 (WARN)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.45
+  ├─ mock correctness:  1.00
+  └─ code consistency:  0.80
+  Intentionally skipped (anti-gaming):
+    • `if __name__ == "__main__":` block — interactive `input()`/`print` demo, 
+not a unit-testable region
+  Actionable weaknesses:
+    •  `test_quick_sort_returns_new_list_and_does_not_mutate_input` asserts the
+input is unchanged, but `quick_sort` calls `collection.pop(...)` for lists of 
+length >= 2, so the input is mutated and the test will fail.
+    •  Several tests compare `quick_sort(collection)` against 
+`sorted(collection)` using the same list object, but `quick_sort` mutates that 
+object. The post-call `sorted(collection)` sees a shortened list, so 
+`test_quick_sort_handles_duplicates`, `test_quick_sort_boundary_orders`, and 
+`test_quick_sort_large_random_input_matches_builtin_sorted` will fail.
+    •  `sys` is imported but never used (ruff F401).
+    •  The `__main__` demo block is tested by reading and `exec`-ing the source
+file. This is brittle and tests CLI/interactive behavior that should be treated
+as intentionally untested in a unit-test suite.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox iloucgk0po1zmolcb5iy1 | exit_code=1 | 4119ms (create 304
+/ pip 1766 / pytest 1367)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 20 items
+
+test_quick_sort.py::test_quick_sort_sorts_unsorted_list PASSED           [  5%]
+test_quick_sort.py::test_quick_sort_returns_new_list_and_does_not_mutate_input 
+FAILED [ 10%]
+test_quick_sort.py::test_qu
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Retrieved 3 similar past case(s) from episodic memory (total: 
+5)
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: AssertionError
+  ├─ root cause:    quick_sort pops the pivot out of the caller's list, so the 
+collection is mutated by the call and every expectation computed with 
+sorted(collection) *after* the call (plus the 'does not mutate' assertion) is 
+wrong, while the three RNG tests fail because the string patch target 
+'sorts.quick_sort.randrange' cannot be resolved by pkgutil/importlib in this 
+environment even though the module itself was imported successfully.
+  ├─ strategy:      full_rewrite
+  └─ affected lines: [32, 37, 84, 98, 106, 116, 127, 139, 154]
+🧠 [Reflector]  Changes made:
+@@ -3,4 +3,8 @@
++
++Implementation note: ``quick_sort`` pops the pivot out of the collection it
++is handed, so the caller's list is mutated (it loses one element per call).
++Expected values must therefore always be computed *before* calling it.
+@@ -18,4 +22,20 @@
++# Helpers
++# ---------------------------------------------------------------------------
++
++
++def _module():
++    """Return the already imported module object that defines 
+``quick_sort``."""
++    return sys.modules[quick_sort.__module__]
++
++
++def _read_source() -> str:
++    """Return the source text of the module under test."""
++    with open(_module().__file__, "r", encoding="utf-8") as handle:
++        return handle.read()
++
++
++# ---------------------------------------------------------------------------
+@@ -27,13 +47,15 @@
+-def test_quick_sort_returns_new_list_and_does_not_mutate_input() -> None:
+-    """The input list must not be mutated; a new sorted list is returned."""
++def test_quick_sort_mutates_input_by_removing_the_pivot() -> None:
++    """The pivot is popped from the input list, and a new list is returned."""
+-    snapshot = list(original)
++    expected = sorted(original)
+-    assert result == [1, 2, 3, 4]
+-    assert original == snapshot
++    assert result == expected == [1, 2, 3, 4]
++    # Exactly one element (the pivot) is removed from the caller's list.
++    assert len(original) == len(expected) - 1
++    # The returned list is the newly built result, not the caller's list.
+@@ -82,5 +104,8 @@
+-    assert quick_sort(collection) == sorted(collection)
++    # Compute the expectation first: quick_sort mutates the input list.
++    expected = sorted(collection)
++
++    assert quick_sort(collection) == expected
+@@ -96,5 +121,7 @@
+-    assert quick_sort(collection) == sorted(collection)
++    expected = sorted(collection)
++
++    assert quick_sort(collection) == expected
+@@ -103,6 +130,7 @@
+-
+-    assert quick_sort(data) == sorted(data)
++    expected = sorted(data)
++
++    assert quick_sort(data) == expected
+@@ -113,6 +141,8 @@
+-    """The pivot index is chosen via ``random.randrange`` from the module."""
+-    with patch("sorts.quick_sort.randrange", return_value=0) as 
+mock_randrange:
++    """The pivot index is chosen via the module-level ``randrange``."""
++    module = _module()
++
++    with patch.object(module, "randrange", return_value=0) as mock_randrange:
+@@ -125,5 +155,7 @@
+-    with patch("sorts.quick_sort.randrange", side_effect=lambda n: n - 1):
++    module = _module()
++
++    with patch.object(module, "randrange", side_effect=lambda n: n - 1):
+@@ -137,5 +169,7 @@
+-    with patch("sorts.quick_sort.randrange", side_effect=fake_randrange):
++    module = _module()
++
++    with patch.object(module, "randrange", side_effect=fake_randrange):
+@@ -155,6 +189,9 @@
+-    with patch.object(builtins, "input", return_value=" 3,1,2 \n"):
+-        exec(compile(_read_source(), "quick_sort.py", "exec"), module_globals)
++    try:
++        with patch.object(builtins, "input", return_value=" 3,1,2 \n"):
++            exec(compile(_read_source(), "quick_sort.py", "exec"), 
+module_globals)
++    except SystemExit:  # pragma: no cover - the demo block has no sys.exit
++        pass
+@@ -166,15 +203,10 @@
+-    with patch.object(builtins, "input", return_value="42"):
+-        exec(compile(_read_source(), "quick_sort.py", "exec"), module_globals)
++    try:
++        with patch.object(builtins, "input", return_value="42"):
++            exec(compile(_read_source(), "quick_sort.py", "exec"), 
+module_globals)
++    except SystemExit:  # pragma: no cover - the demo block has no sys.exit
++        pass
+-
+-
+-def _read_source() -> str:
+-    """Return the source text of the module under test."""
+-    import sorts.quick_sort as module
+-
+-    with open(module.__file__, "r", encoding="utf-8") as handle:
+-        return handle.read()
+✓ [Reflector]  Patch applied, re-executing...
+🗂  [MemoryManager]  Spawned background CRUD decision for trajectory 
+(AssertionError)
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox i0njke62p9x29lj2ka0h8 | exit_code=0 | 4927ms (create 
+1039 / pip 1989 / pytest 1045)
+✓ [Executor]  All tests passed!  Coverage: 100%
+→ [Router]  Tests passed! Routing to END.
+🗂  [MemoryManager]  ADD: persisted as new trajectory (memory now: 6 live)
+   reason: The new trajectory is a distinct instance of the argument-mutation 
+pattern seen in Neighbor 2, but it targets a different function (quick_sort), 
+uses a full_rewrite fix, and adds an unrelated patch-target-resolution failure,
+so Neighbor 2 is not wrong or vaguer and no neighbor should be replaced or 
+deprecated.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_A_r1\tests\test_sorts__quick_sort.py
+
+(8/19) sorts/merge_sort.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\sorts\\merge_sort.py'})
+✓ [Generator]  Generated test_merge_sort.py (98 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.98 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 1.00
+  ├─ mock correctness:  1.00
+  └─ code consistency:  0.90
+  Intentionally skipped (anti-gaming):
+    • `if __name__ == "__main__":` block — interactive CLI/doctest entrypoint 
+using `input()` and `print()`, not unit-testable without subprocess/input 
+mocking
+    • nested `merge` helper — private implementation detail of `merge_sort`, 
+indirectly exercised through public `merge_sort` tests rather than directly 
+unit-tested
+  Actionable weaknesses:
+    •  Several boundary cases are tested redundantly in both the parametrized 
+test and separate dedicated tests, e.g. empty list, singleton, and negative 
+values.
+    •  A couple of test names are misleading: 
+`test_merge_sort_returns_new_list_and_does_not_mutate_input` does not verify 
+new-list identity for empty/singleton inputs, and 
+`test_merge_sort_does_not_mutate_nested_slices` uses a flat list rather than 
+nested slices.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox iejt8pqwv44e5rdq3gnwn | exit_code=0 | 4181ms (create 314
+/ pip 1982 / pytest 1180)
+✓ [Executor]  All tests passed!  Coverage: 59%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_A_r1\tests\test_sorts__merge_sort.py
+
+(9/19) sorts/insertion_sort.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\sorts\\insertion_sort.py'})
+✓ [Generator]  Generated test_insertion_sort.py (208 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.72 (WARN)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.90
+  ├─ mock correctness:  0.40
+  └─ code consistency:  0.88
+  Intentionally skipped (anti-gaming):
+    • `if __name__ == "__main__"` CLI block — interactive `input()`/`print` and
+doctest runner, not unit-testable.
+  Actionable weaknesses:
+    •  `test_uses_len_and_getitem_of_collection` patches `__len__` on a 
+built-in list instance, which cannot be set and would not intercept `len()` 
+anyway; this test will fail during patch setup.
+    •  `test_comparisons_are_performed_via_lt_operator` only asserts `calls` is
+non-empty rather than verifying the expected comparison.
+    •  `test_uses_len_and_getitem_of_collection` only asserts 
+`len_mock.called`, which is weak and does not verify call count or arguments; 
+it also does not actually verify `__getitem__` usage.
+    •  Ruff reports E501: line 27 exceeds 88 characters.
+    •  The import bootstrap contains a hard-coded absolute Windows fallback 
+path, reducing portability.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox iqcs72k8gjdolqky7l3xa | exit_code=2 | 6596ms (create 297
+/ pip 3078 / pytest 1941)
+✗ [Executor]  Tests failed:
+ERRORS ====================================
+___________________ ERROR collecting test_insertion_sort.py 
+____________________
+test_insertion_sort.py:31: in <module>
+    _spec.loader.exec_module(insertion_sort_module)
+<frozen importlib._bootstrap_external>:1023: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1160: in get_code
+    ???
+<frozen importlib._bootstrap_external>:1218: in get_data
+    ???
+E   FileNotFoundError: [Errno 2] No such file or directory: 
+'/workspace/D:\\Documents\
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Retrieved 3 similar past case(s) from episodic memory (total: 
+6)
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+⚠ [Reflector]  Structured output failed (parse_error) — retrying once with 
+thinking disabled
+  ├─ classification: ImportError
+  ├─ root cause:    The fallback path uses a hardcoded Windows absolute path 
+that does not exist on the Linux test runner, so exec_module raises 
+FileNotFoundError during collection.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [24, 25, 26, 27, 28, 31]
+🧠 [Reflector]  Changes made:
+@@ -21,7 +21,13 @@
+-    _SOURCE_PATH = Path(
+-        
+r"D:\Documents\Study\Projects\algorithms-bench\sorts\insertion_sort.py"
+-    )
++    _candidates = [
++        Path(__file__).resolve().parent / "insertion_sort.py",
++        Path.cwd() / "sorts" / "insertion_sort.py",
++        Path.cwd() / "insertion_sort.py",
++    ]
++    for _candidate in _candidates:
++        if _candidate.exists():
++            _SOURCE_PATH = _candidate
++            break
+@@ -206,3 +212,3 @@
+-    assert results.attempted > 0
++    assert results.attempted > 0
+✓ [Reflector]  Patch applied, re-executing...
+🗂  [MemoryManager]  Spawned background CRUD decision for trajectory 
+(ImportError)
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+🗂  [MemoryManager]  ADD: persisted as new trajectory (memory now: 7 live)
+   reason: The new trajectory is an ImportError caused by a hardcoded Windows 
+absolute path breaking on a Linux runner, which is entirely unrelated to the 
+retrieved AssertionError neighbors (mock patch targets, mutating sorts, Counter
+mutation), so no existing memory covers this pattern.
+⚡ [Executor]  Sandbox ib53rgp8jyp3hh3pt0hew | exit_code=1 | 5637ms (create 967
+/ pip 1692 / pytest 1674)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 26 items
+
+test_insertion_sort.py::test_sorts_unsorted_list_of_ints PASSED          [  3%]
+test_insertion_sort.py::test_sorts_list_of_strings PASSED                [  7%]
+test_insertion_sort.py::test_sorts_negat
+→ [Router]  Tests failed. Routing to Reflector (2/3)
+🧠 [Reflector]  Analyzing error (attempt 2/3)...
+🧠 [Reflector]  Retrieved 3 similar past case(s) from episodic memory (total: 
+7)
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: AttributeError
+  ├─ root cause:    The test tries to patch/mock `__len__` directly on a 
+built-in `list` instance, but list's C-level type slots are read-only, so 
+`patch.object(collection, "__len__", ...)` raises `AttributeError: 'list' 
+object attribute '__len__' is read-only` instead of being applied.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [202, 203, 204]
+🧠 [Reflector]  Changes made:
+@@ -12,5 +12,4 @@
+-from unittest.mock import patch
+@@ -198,9 +197,30 @@
+-    """The algorithm only needs ``len``, ``__getitem__`` and 
+``__setitem__``."""
+-    collection = [3, 1, 2]
+-    with patch.object(collection, "__len__", wraps=collection.__len__) as 
+len_mock:
+-        insertion_sort(collection)
+-    assert len_mock.called
++    """The algorithm only needs ``len``, ``__getitem__`` and ``__setitem__``.
++
++    Built-in ``list`` objects do not allow their dunder methods to be patched
++    (their ``__len__`` slot is read-only), so a ``list`` subclass that records
++    the calls is used as the spy instead.
++    """
++    calls = {"len": 0, "getitem": 0, "setitem": 0}
++
++    class SpyList(list):
++        def __len__(self):
++            calls["len"] += 1
++            return super().__len__()
++
++        def __getitem__(self, index):
++            calls["getitem"] += 1
++            return super().__getitem__(index)
++
++        def __setitem__(self, index, value):
++            calls["setitem"] += 1
++            return super().__setitem__(index, value)
++
++    collection = SpyList([3, 1, 2])
++    insertion_sort(collection)
++
++    assert calls["len"] > 0
++    assert calls["getitem"] > 0
+✓ [Reflector]  Patch applied, re-executing...
+🗂  [MemoryManager]  Spawned background CRUD decision for trajectory 
+(AttributeError)
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+🗂  [MemoryManager]  ADD: persisted as new trajectory (memory now: 8 live)
+   reason: The new trajectory describes a distinct AttributeError caused by 
+patching __len__ on a built-in list (read-only C-level slots), which none of 
+the retrieved neighbors cover (they concern mock namespace resolution, a bad 
+Windows path, and quick_sort mutation), so it is a novel failure pattern.
+⚡ [Executor]  Sandbox i9w893rkf7yddopmrdxuz | exit_code=0 | 5540ms (create 954
+/ pip 1657 / pytest 1029)
+✓ [Executor]  All tests passed!
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_A_r1\tests\test_sorts__insertion_sort.p
+y
+
+(10/19) searches/binary_search.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\searches\\binary_search.py'}
+)
+✓ [Generator]  Generated test_binary_search.py (543 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.96 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.92
+  ├─ mock correctness:  1.00
+  └─ code consistency:  0.90
+  Intentionally skipped (anti-gaming):
+    • if __name__ == "__main__" block — CLI/interactive entrypoint with doctest
+execution, timeit benchmarks, print wrappers, and input() loop; not 
+unit-testable
+    • Unreachable `if last_result is None` branch in exponential_search — 
+binary_search_by_recursion always returns int, so this branch cannot be 
+behaviorally exercised
+  Actionable weaknesses:
+    •  The module under test is loaded via a hardcoded absolute Windows path, 
+which makes the test suite environment-specific and brittle outside the 
+original machine.
+    •  Ruff reports two E501 line-too-long violations in the generated test 
+file.
+    •  `test_binary_search_with_duplicates_returns_list_type` only checks 
+`isinstance(..., list)`, which is weaker than the exact-value assertions used 
+elsewhere.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox ibyardj3qa4lnmfkat6v2 | exit_code=2 | 5488ms (create 296
+/ pip 1984 / pytest 1791)
+✗ [Executor]  Tests failed:
+ERRORS ====================================
+____________________ ERROR collecting test_binary_search.py 
+____________________
+Using pytest.skip outside of a test will skip the entire module. If that's your
+intention, pass `allow_module_level=True`. If you want to skip a specific test 
+or an entire class, use the @pytest.mark.skip or @pytest.mark.skipif 
+decorators.
+=========================== short test summary info 
+============================
+ERROR test_binary_search.py
+!!!!!!!!!!!!!!!!!!!! Inter
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Retrieved 3 similar past case(s) from episodic memory (total: 
+8)
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: Other
+  ├─ root cause:    The test resolves the module under test via a hardcoded 
+Windows absolute path that does not exist on the Linux runner, and the fallback
+calls `pytest.skip` at module-import (collection) time, which pytest rejects 
+unless `allow_module_level=True` is passed.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [26, 27, 28, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 
+47]
+🧠 [Reflector]  Changes made:
+@@ -27,15 +27,38 @@
++# The source may live next to the test, one level down in `searches/`, or be
++# reached from the current working directory, so several candidates are tried.
+-_SOURCE_PATH = Path(
+-    r"D:\Documents\Study\Projects\algorithms-bench\searches\binary_search.py"
+-)
++_TEST_DIR = Path(__file__).resolve().parent
++
++_CANDIDATES = [
++    _TEST_DIR / "binary_search.py",
++    _TEST_DIR / "searches" / "binary_search.py",
++    Path.cwd() / "binary_search.py",
++    Path.cwd() / "searches" / "binary_search.py",
++    
+Path(r"D:\Documents\Study\Projects\algorithms-bench\searches\binary_search.py")
+,
++]
++
++
++def _find_source():
++    """Return the first existing candidate path for the module under test."""
++    for candidate in _CANDIDATES:
++        if candidate.is_file():
++            return candidate
++    return None
+-    """Load the target module from its absolute path."""
+-    if not _SOURCE_PATH.exists():  # pragma: no cover - defensive
+-        pytest.skip(f"Source file not found: {_SOURCE_PATH}")
+-    spec = importlib.util.spec_from_file_location("binary_search_under_test", 
+_SOURCE_PATH)
++    """Load the target module from its resolved absolute path."""
++    source = _find_source()
++    if source is None:  # pragma: no cover - defensive
++        pytest.skip(
++            "binary_search.py not found; looked in: "
++            + ", ".join(str(c) for c in _CANDIDATES),
++            allow_module_level=True,
++        )
++    spec = importlib.util.spec_from_file_location(
++        "binary_search_under_test", source
++    )
+@@ -139,5 +162,7 @@
+-        assert bs.bisect_right(collection, item) == 
+bisect.bisect_right(collection, item)
++        assert bs.bisect_right(collection, item) == bisect.bisect_right(
++            collection, item
++        )
+@@ -541,3 +566,3 @@
+-        assert right[expected_right] == item
++        assert right[expected_right] == item
+✓ [Reflector]  Patch applied, re-executing...
+🗂  [MemoryManager]  Spawned background CRUD decision for trajectory (Other)
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+🗂  [MemoryManager]  UPDATE: replaced trajectory 09646a8b…
+   reason: Neighbor 1 covers the same hardcoded-Windows-path-during-collection 
+failure but its root_cause and fix are incomplete, missing the second half of 
+the bug (module-level `pytest.skip` needing `allow_module_level=True`), so the 
+new trajectory supersedes it.
+⚡ [Executor]  Sandbox i49w3bkoaosn12j5f26ev | exit_code=1 | 4901ms (create 448
+/ pip 2004 / pytest 1685)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 118 items
+
+test_binary_search.py::test_bisect_left_happy_path[collection0-0-0] PASSED [  
+0%]
+test_binary_search.py::test_bisect_left_happy_path[collection1-6-2] PASSED [  
+1%]
+test_binary_search.py::test_bisect_
+→ [Router]  Tests failed. Routing to Reflector (2/3)
+🧠 [Reflector]  Analyzing error (attempt 2/3)...
+🧠 [Reflector]  Retrieved 3 similar past case(s) from episodic memory (total: 
+8)
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+⚠ [Reflector]  Structured output failed (truncated) — retrying once with 
+thinking disabled
+  ├─ classification: AssertionError
+  ├─ root cause:    The tests assume `binary_search_by_recursion` handles 
+`right=-1` as a sentinel, but the source only converts `right<0` to `len-1` 
+when `right<0`; however the recursion passes `midpoint-1` which can be `-1` and
+gets re-interpreted as `len-1`, causing infinite recursion, and the insort 
+identity tests wrongly assume the inserted tuple is a distinct object from the 
+equal existing tuple (they are equal but the test's `is not` check fails 
+because the existing element at that index is the same object as the inserted 
+one only when... actually the inserted item is placed at index 1 for 
+insort_left, so collection[2] is the original (5,5) which is a different object
+— but the test fails because the original (5,5) literal and item (5,5) are the 
+same interned tuple).
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [211, 264, 469, 493, 515, 554]
+🧠 [Reflector]  Changes made:
+@@ -175,4 +175,5 @@
++
+@@ -209,5 +210,4 @@
+-    assert item is not collection[2]
+@@ -229,4 +229,5 @@
++
+@@ -262,5 +263,4 @@
+-    assert item is not collection[1]
+✓ [Reflector]  Patch applied, re-executing...
+🗂  [MemoryManager]  Spawned background CRUD decision for trajectory 
+(AssertionError)
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+🗂  [MemoryManager]  ADD: persisted as new trajectory (memory now: 9 live)
+   reason: The new trajectory concerns tuple-identity assumptions in insort 
+tests (interning/object identity of equal tuples) plus a recursion sentinel 
+issue, a failure category not covered by any neighbor (which address hardcoded 
+path resolution, patch namespace targeting, and read-only list dunder 
+patching).
+⚡ [Executor]  Sandbox iz4kdctpz3w8v0lmc2xcc | exit_code=1 | 5046ms (create 312
+/ pip 2349 / pytest 1623)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 118 items
+
+test_binary_search.py::test_bisect_left_happy_path[collection0-0-0] PASSED [  
+0%]
+test_binary_search.py::test_bisect_left_happy_path[collection1-6-2] PASSED [  
+1%]
+test_binary_search.py::test_bisect_
+→ [Router]  Tests failed. Routing to Reflector (3/3)
+🧠 [Reflector]  Analyzing error (attempt 3/3)...
+🧠 [Reflector]  Retrieved 3 similar past case(s) from episodic memory (total: 
+9)
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+⚠ [Reflector]  Structured output failed (truncated) — retrying once with 
+thinking disabled
+  ├─ classification: Other
+  ├─ root cause:    The source's `binary_search_by_recursion` treats `right=-1`
+as a sentinel meaning `len-1`, but the recursion passes `midpoint-1` which can 
+be `-1`, causing infinite recursion; the tests that call it with default bounds
+(or via exponential_search) trigger this RecursionError.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [469, 493, 515, 554]
+🧠 [Reflector]  Changes made:
+@@ -467,7 +467,7 @@
+-        assert bs.binary_search_by_recursion(collection, item) == 
+bs.binary_search(
+-            collection, item
+-        )
++        assert bs.binary_search_by_recursion(
++            collection, item, 0, len(collection) - 1
++        ) == bs.binary_search(collection, item)
+✓ [Reflector]  Patch applied, re-executing...
+🗂  [MemoryManager]  Spawned background CRUD decision for trajectory (Other)
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+🗂  [MemoryManager]  UPDATE: replaced trajectory 2443a367…
+   reason: Neighbor 1 diagnoses the exact same root cause 
+(binary_search_by_recursion reinterpreting midpoint-1 == -1 as the len-1 
+sentinel, causing infinite recursion), but its fix_summary is a muddled, 
+unrelated insort identity assertion change that would not actually fix the 
+RecursionError; the new trajectory supplies a correct and complete fix (passing
+explicit 0, len-1 bounds), so it should replace Neighbor 1 in-place.
+⚡ [Executor]  Sandbox ibgj19etq16zh63ip8ntz | exit_code=1 | 4802ms (create 923
+/ pip 1733 / pytest 1355)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 118 items
+
+test_binary_search.py::test_bisect_left_happy_path[collection0-0-0] PASSED [  
+0%]
+test_binary_search.py::test_bisect_left_happy_path[collection1-6-2] PASSED [  
+1%]
+test_binary_search.py::test_bisect_
+→ [Router]  Max retries (3) reached. Routing to END (failed).
+
+(11/19) searches/linear_search.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\searches\\linear_search.py'}
+)
+✓ [Generator]  Generated test_linear_search.py (124 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.98 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.97
+  ├─ mock correctness:  1.00
+  └─ code consistency:  0.95
+  Intentionally skipped (anti-gaming):
+    • `if __name__ == "__main__":` CLI block — interactive input()/print() 
+entrypoint, not unit-testable without simulating stdin; should not be covered 
+by unit tests
+  Actionable weaknesses:
+    •  `pytest.raises(Exception, ...)` uses the overly broad built-in 
+`Exception` type.
+    •  Parametrized cases overlap with the explicit single-element-range test, 
+causing slight redundancy.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox irkwk12wbmm0hp9zurp0j | exit_code=1 | 3983ms (create 334
+/ pip 1910 / pytest 1083)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 34 items
+
+test_linear_search.py::test_linear_search_returns_correct_index[sequence0-0-0] 
+PASSED [  2%]
+test_linear_search.py::test_linear_search_returns_correct_index[sequence1-15-4]
+PASSED [  5%]
+test_linear_s
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Retrieved 3 similar past case(s) from episodic memory (total: 
+9)
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: AssertionError
+  ├─ root cause:    The parametrized case `([5], 0, 0, 6, -1)` assumes a 
+missing target in a one-element window returns -1, but the source recurses with
+`low + 1 = 1`, `high - 1 = -1` and hits the bounds validation (`raise 
+Exception("Invalid upper or lower bound!")`) before the `high < low` 
+termination check can ever run.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [77, 84]
+🧠 [Reflector]  Changes made:
+@@ -75,5 +75,9 @@
+-        ([5], 0, 0, 6, -1),
++        # A missing target with a one-element window is only guaranteed to 
+return
++        # -1 when stepping out of the window keeps the indices in range (see
++        # test_rec_linear_search_single_element_miss_raises_bounds_error for 
+the
++        # length-1-sequence edge case of this implementation).
++        ([5, 6], 0, 1, 7, -1),
+@@ -94,4 +98,16 @@
++
++
++def test_rec_linear_search_single_element_miss_raises_bounds_error():
++    """Documented quirk of the implementation.
++
++    When the window is a single element at the very start of a length-1
++    sequence, the recursive step (`low + 1`, `high - 1`) leaves the valid 
+index
++    range, so the bounds validation fires before the `high < low` termination
++    check can return -1.
++    """
++    with pytest.raises(Exception, match="Invalid upper or lower bound!"):
++        rec_linear_search([5], 0, 0, 6)
+@@ -122,3 +138,3 @@
+-    assert rec_linear_search((10, 20, 30), 0, 2, 30) == 2
++    assert rec_linear_search((10, 20, 30), 0, 2, 30) == 2
+✓ [Reflector]  Patch applied, re-executing...
+🗂  [MemoryManager]  Spawned background CRUD decision for trajectory 
+(AssertionError)
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+🗂  [MemoryManager]  ADD: persisted as new trajectory (memory now: 10 live)
+   reason: The new trajectory covers a distinct bounds-validation failure in 
+linear search's parametrized test, and none of the retrieved neighbors (binary 
+search recursion, fib numpy int64 overflow, linspace midpoint) address this 
+pattern.
+⚡ [Executor]  Sandbox i15tdxqdoz6lo9eju6s89 | exit_code=0 | 4573ms (create 324
+/ pip 1914 / pytest 1037)
+✓ [Executor]  All tests passed!  Coverage: 70%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_A_r1\tests\test_searches__linear_search
+.py
+
+(12/19) strings/palindrome.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\strings\\palindrome.py'})
+✓ [Generator]  Generated test_palindrome.py (265 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.86 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.65
+  ├─ mock correctness:  1.00
+  └─ code consistency:  0.85
+  Intentionally skipped (anti-gaming):
+    • `if __name__ == "__main__":` block — module demo/CLI entrypoint that 
+prints sample data and runs 500k-iteration benchmarks; not unit-testable 
+without coverage gaming
+    • Module-level `assert all(...)` sanity check on `test_data` — executed at 
+import time; implicitly covered by successful import and explicitly re-asserted
+in test_test_data_is_consistent
+  Actionable weaknesses:
+    •  Incorrect expected value: `("ab" * 500, True)` in 
+test_all_implementations_edge_cases. `"abab...ab"` is NOT a palindrome (its 
+reverse is `"bab...ba"`), so this case fails for all four correct 
+implementations.
+    •  Incorrect expected value in test_is_palindrome_recursive_deep_recursion:
+`value = "ab" * 200` expects True but `"abab...ab"` is not a palindrome, so the
+test fails on correct source.
+    •  Unused imports `builtins` and `sys` (ruff F401) left over from a 
+discarded approach.
+    •  test_benchmark_function_builds_expected_timeit_arguments hard-codes the 
+internal `stmt`/`setup` strings, coupling the test to the exact formatting of 
+benchmark_function's f-strings rather than its observable behaviour.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox izsafx8q0qohaffcqt617 | exit_code=1 | 5145ms (create 307
+/ pip 2805 / pytest 1372)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 90 items
+
+test_palindrome.py::test_test_data_is_consistent PASSED                  [  1%]
+test_palindrome.py::test_test_data_contains_expected_entries PASSED      [  2%]
+test_palindrome.py::test_all_implementat
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Retrieved 3 similar past case(s) from episodic memory (total: 
+10)
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: AssertionError
+  ├─ root cause:    The parametrized 'long even palindrome' case ("ab" * 500) 
+and the deep-recursion case ("ab" * 200) are not actually palindromes ("ab" 
+repeated reverses to "ba" repeated), so every implementation correctly returns 
+False, contradicting the hard-coded expected True.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [72, 73, 187]
+🧠 [Reflector]  Changes made:
+@@ -73,6 +73,8 @@
+-        ("ab" * 500, True),  # long even palindrome
+-        ("ab" * 500 + "c", False),  # long string, mismatch in the middle
++        # long even palindrome: (ab)^n (ba)^n reverses to itself
++        ("ab" * 100 + "ba" * 100, True),
++        # long string with a mismatch near the middle
++        ("a" * 250 + "ba" + "a" * 250, False),
+@@ -184,5 +186,7 @@
+-    value = "ab" * 200
++    # (ab)^200 (ba)^200 is a genuine palindrome of length 800, so the
++    # recursive implementation recurses ~400 levels deep (well under the 
+limit).
++    value = "ab" * 200 + "ba" * 200
+@@ -263,3 +267,3 @@
+-    assert line.startswith("x" + " " * 34)
++    assert line.startswith("x" + " " * 34)
+✓ [Reflector]  Patch applied, re-executing...
+🗂  [MemoryManager]  Spawned background CRUD decision for trajectory 
+(AssertionError)
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+🗂  [MemoryManager]  ADD: persisted as new trajectory (memory now: 11 live)
+   reason: The new failure is a distinct pattern — the parametrized fixture 
+data itself is invalid ("ab"*n is not a palindrome, so all correct 
+implementations return False against a hard-coded True) — which none of the 
+neighbors cover (they concern numpy int64 overflow, a recursion sentinel bug, 
+and a bounds-validation ordering issue), so it warrants a new entry rather than
+an update or deprecation.
+⚡ [Executor]  Sandbox ip11rn8dscwsxxk5jw53j | exit_code=0 | 4742ms (create 309
+/ pip 2140 / pytest 1643)
+✓ [Executor]  All tests passed!  Coverage: 78%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_A_r1\tests\test_strings__palindrome.py
+
+(13/19) strings/reverse_words.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\strings\\reverse_words.py'})
+✓ [Generator]  Generated test_reverse_words.py (129 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+Evaluator structured output unavailable: invoke raised: Failed to parse EvaluationResult from completion {"testable_coverage_score": 1.0, "assertion_quality": 0.95, "mock_correctness": 1.0, "code_consistency": 0.95, "overall_score": 0.97, "skipped_intentionally": ["if __name__ == \"__main__\": doctest.testmod() — CLI/doctest entrypoint, not unit-testable (writing a test for it would just call doctest.testmod() again)"], "strengths": ["Every testable branch of the single testable function is covered: happy path, empty/whitespace-only input, tabs/newlines, mixed whitespace, unicode, punctuation, repeated words, and invariants (double-reverse, word count, whitespace normalization).", "Assertions are exact string comparisons (e.g. `assert reverse_words(\"hello, world!\") == \"world! hello,\"`), which is the highest-signal form for this pure function.", "Style is coherent: no mocks needed, parametrize used consistently, imports clean, class/test naming consistent, and ruff reports no issues."], "weaknesses": [{"issue": "test_returns_string_type uses only isinstance checks, which is a weaker assertion than the rest of the file", "severity": "minor", "actionable": true, "suggested_fix": "Either drop it (return type is implicit in every other exact-string assertion) or fold the isinstance check into an existing parametrized test."}, {"issue": "The `if __name__ == \"__main__\": doctest.testmod()` block is not exercised", "severity": "minor", "actionable": false, "suggested_fix": "Leave uncovered — testing this entrypoint would only re-run the doctest runner and adds no real signal."}]}. Got: 1 validation error for EvaluationResult
+recommended_action
+  Field required [type=missing, input_value={'testable_coverage_score...adds no real signal.'}]}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.12/v/missing
+For troubleshooting, visit: https://docs.langchain.com/oss/python/langchain/errors/OUTPUT_PARSING_FAILURE 
+⚠ [Evaluator]  Failed to score (invoke raised: Failed to parse EvaluationResult
+from completion {"testable_cover…) — falling through to Executor
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox iv80s1hkjcxe7tll6e8fa | exit_code=0 | 4422ms (create 312
+/ pip 1973 / pytest 971)
+✓ [Executor]  All tests passed!  Coverage: 60%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_A_r1\tests\test_strings__reverse_words.
+py
+
+(14/19) strings/word_occurrence.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\strings\\word_occurrence.py'
+})
+✓ [Generator]  Generated test_word_occurrence.py (111 lines, 1 file(s) read via
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.95 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.95
+  ├─ mock correctness:  1.00
+  └─ code consistency:  0.95
+  Intentionally skipped (anti-gaming):
+    • `if __name__ == "__main__":` block — CLI entrypoint that prints a 
+hardcoded demo string; no return value or logic to assert on
+  Actionable weaknesses:
+    •  `test_input_not_mutated` is tautological — strings are immutable in 
+Python, so the assertion passes regardless of what `word_occurrence` does.
+    •  `test_result_is_independent_between_calls` largely duplicates the 
+coverage of `test_repeated_words_are_counted` and only adds a trivially-true 
+`first is not second` identity check.
+    •  `test_returns_defaultdict` asserts `result.default_factory is int`, 
+which pins an implementation detail rather than observable behaviour.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox i96ksh3t0e35og48338kf | exit_code=0 | 5729ms (create 315
+/ pip 2483 / pytest 999)
+✓ [Executor]  All tests passed!  Coverage: 78%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_A_r1\tests\test_strings__word_occurrenc
+e.py
+
+(15/19) data_structures/stacks/stack.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\data_structures\\stacks\\sta
+ck.py'})
+✓ [Generator]  Generated test_stack.py (428 lines, 1 file(s) read via tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.95 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 1.00
+  ├─ mock correctness:  0.90
+  └─ code consistency:  0.85
+  Intentionally skipped (anti-gaming):
+    • if __name__ == "__main__": block — CLI/doctest entrypoint, not 
+unit-testable
+    • from __future__ import annotations / TypeVar T — module-level 
+declarations, not testable behavior
+  Actionable weaknesses:
+    •  test_doctests_pass will fail because the module is loaded as 
+'stack_under_test' while doctests expect 
+'data_structures.stacks.stack.StackOverflowError'.
+    •  Only 'import importlib' is used, but the code accesses 'importlib.util';
+this can raise AttributeError if importlib.util is not already imported.
+    •  The source path is hardcoded as an absolute Windows path, making the 
+test non-portable.
+    •  Minor style inconsistencies: 'import doctest' inside a test function and
+redundant string annotations under 'from __future__ import annotations'.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox i81xe8jei1j33fwgrn4f6 | exit_code=2 | 4447ms (create 295
+/ pip 2047 / pytest 1337)
+✗ [Executor]  Tests failed:
+ERRORS ====================================
+________________________ ERROR collecting test_stack.py 
+________________________
+test_stack.py:37: in <module>
+    stack_module = _load_module()
+                   ^^^^^^^^^^^^^^
+test_stack.py:33: in _load_module
+    spec.loader.exec_module(module)
+<frozen importlib._bootstrap_external>:1023: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1160: in get_code
+    ???
+<frozen importlib._bootstrap_external>:1218: in get_data
+    ???
+E   FileN
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Retrieved 3 similar past case(s) from episodic memory (total: 
+11)
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: Other
+  ├─ root cause:    The test resolves the module under test through a 
+hard-coded Windows absolute path, so on the Linux runner the file cannot be 
+found and collection fails with FileNotFoundError, and the module is registered
+under a name whose exception qualification also breaks the module's doctests.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [24, 25, 26, 27, 28, 33, 37]
+🧠 [Reflector]  Changes made:
+@@ -9,5 +9,8 @@
++import importlib.util
++import os
++import types
+@@ -19,16 +22,89 @@
+-# layout / ``__init__.py`` files.
+-# ---------------------------------------------------------------------------
+-SOURCE_PATH = Path(
+-    
+r"D:\Documents\Study\Projects\algorithms-bench\data_structures\stacks\stack.py"
++# layout / ``__init__.py`` files.  It is registered under the dotted name
++# ``data_structures.stacks.stack`` because the doctests embedded in the source
++# compare fully-qualified exception names such as
++# ``data_structures.stacks.stack.StackOverflowError``.
++# ---------------------------------------------------------------------------
++MODULE_NAME = "data_structures.stacks.stack"
++
++_TEST_DIR = Path(__file__).resolve().parent
++
++_CANDIDATE_SOURCES = (
++    _TEST_DIR / "stack.py",
++    _TEST_DIR / "data_structures" / "stacks" / "stack.py",
++    _TEST_DIR.parent / "data_structures" / "stacks" / "stack.py",
++    Path.cwd() / "data_structures" / "stacks" / "stack.py",
++    Path.cwd() / "stack.py",
++def _looks_like_target(path: Path) -> bool:
++    """Return True when ``path`` looks like the stack module under test."""
++    try:
++        text = path.read_text(encoding="utf-8", errors="ignore")
++    except OSError:  # pragma: no cover - defensive
++        return False
++    return "class StackOverflowError" in text and "class StackUnderflowError" 
+in text
++
++
++def _find_source() -> Path:
++    """Locate ``stack.py`` without relying on a hard-coded absolute path."""
++    candidates = []
++    env_override = os.environ.get("STACK_MODULE_PATH")
++    if env_override:
++        candidates.append(Path(env_override))
++    candidates.extend(_CANDIDATE_SOURCES)
++
++    for candidate in candidates:
++        try:
++            if candidate.is_file() and _looks_like_target(candidate):
++                return candidate
++        except OSError:  # pragma: no cover - defensive
++            continue
++
++    for root in (_TEST_DIR, Path.cwd()):
++        try:
++            for candidate in sorted(root.rglob("stack.py")):
++                if _looks_like_target(candidate):
++                    return candidate
++        except OSError:  # pragma: no cover - defensive
++            continue
++
++    searched = "\n".join(str(candidate) for candidate in candidates)
++    raise FileNotFoundError("Unable to locate stack.py; tried:\n" + searched)
++
++
++def _register_parent_packages(module_name: str) -> None:
++    """Create placeholder packages so ``module_name`` is importable by 
+name."""
++    parts = module_name.split(".")[:-1]
++    for index in range(1, len(parts) + 1):
++        package_name = ".".join(parts[:index])
++        if package_name in sys.modules:
++            continue
++        package = types.ModuleType(package_name)
++        package.__path__ = []  # type: ignore[attr-defined]
++        if index > 1:
++            parent = sys.modules[".".join(parts[: index - 1])]
++            setattr(parent, parts[index - 1], package)
++        sys.modules[package_name] = package
++
++
+-    """Load the target module from its absolute file path."""
+-    spec = importlib.util.spec_from_file_location("stack_under_test", 
+SOURCE_PATH)
++    """Load the target module from its file path under its dotted name."""
++    source = _find_source()
++    _register_parent_packages(MODULE_NAME)
++
++    spec = importlib.util.spec_from_file_location(MODULE_NAME, source)
++    if spec is None or spec.loader is None:  # pragma: no cover - defensive
++        raise ImportError(f"Unable to build an import spec for {source}")
++
+-    sys.modules["stack_under_test"] = module
++    sys.modules[MODULE_NAME] = module
++
++    parent_name, _, child_name = MODULE_NAME.rpartition(".")
++    if parent_name:
++        setattr(sys.modules[parent_name], child_name, module)
++
+@@ -426,3 +502,3 @@
+-    assert results.failed == 0
++    assert results.failed == 0
+✓ [Reflector]  Patch applied, re-executing...
+🗂  [MemoryManager]  Spawned background CRUD decision for trajectory (Other)
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+🗂  [MemoryManager]  UPDATE: replaced trajectory 09646a8b…
+   reason: Neighbor 1 covers the same failure category (hardcoded Windows 
+absolute source path breaking collection on the Linux runner) but its 
+root_cause only captures the module-level pytest.skip symptom, whereas the new 
+trajectory generalizes it to the path-resolution failure plus the 
+module-registration name breaking doctests, and its fix (dynamic loading via 
+importlib.util/types) supersedes the candidate-path fallback.
+⚡ [Executor]  Sandbox i791y04o9iz8ow1cbug7e | exit_code=0 | 5778ms (create 323
+/ pip 2604 / pytest 1135)
+✓ [Executor]  All tests passed!
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_A_r1\tests\test_data_structures__stacks
+__stack.py
+
+(16/19) data_structures/queues/queue_by_list.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\data_structures\\queues\\que
+ue_by_list.py'})
+✓ [Generator]  Generated test_queue_by_list.py (247 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.80 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.55
+  ├─ mock correctness:  1.00
+  └─ code consistency:  1.00
+  Intentionally skipped (anti-gaming):
+    • __main__ doctest runner — CLI/test-harness entrypoint, not unit-testable
+  Actionable weaknesses:
+    •  test_get_after_put asserts incorrect values because it does not drain 
+the existing front item before calling put(40).
+    •  test_rotate_empty_queue expects rotate() on an empty queue to be a 
+no-op, but the implementation calls entries.pop(0) and raises IndexError.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox iw4su21xuiujb5arhphyx | exit_code=1 | 4722ms (create 364
+/ pip 2087 / pytest 1093)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 35 items
+
+test_queue_by_list.py::test_init_empty PASSED                            [  2%]
+test_queue_by_list.py::test_init_with_iterable[iterable0-expected0] PASSED [  
+5%]
+test_queue_by_list.py::test_init_with_
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Retrieved 3 similar past case(s) from episodic memory (total: 
+11)
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: AssertionError
+  ├─ root cause:    Two tests assert behavior the implementation does not 
+provide: `test_get_after_put` forgets that the queue already contains 10, 20, 
+30 so the first `get()` returns 10 (not 20), and `test_rotate_empty_queue` 
+expects a silent no-op while `rotate` unconditionally pops from the underlying 
+list and therefore raises IndexError on an empty queue.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [145, 199]
+🧠 [Reflector]  Changes made:
+@@ -143,4 +143,5 @@
++    assert queue.get() == 10
+@@ -195,7 +196,8 @@
+-    """Rotating an empty queue must be a no-op."""
+-    queue = QueueByList()
+-    queue.rotate(3)
++    """Rotating an empty queue pops from an empty list and raises 
+IndexError."""
++    queue = QueueByList()
++    with pytest.raises(IndexError):
++        queue.rotate(3)
+@@ -245,3 +247,3 @@
+-        queue.get()
++        queue.get()
+✓ [Reflector]  Patch applied, re-executing...
+🗂  [MemoryManager]  Spawned background CRUD decision for trajectory 
+(AssertionError)
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+🗂  [MemoryManager]  ADD: persisted as new trajectory (memory now: 12 live)
+   reason: The new trajectory describes incorrect test expectations (stale 
+pre-populated state, and a wrong assumption about empty-queue rotate raising 
+IndexError), which is a distinct failure pattern from the retrieved neighbors' 
+mocking/patching and caller-mutation issues, so no existing trajectory covers 
+it.
+⚡ [Executor]  Sandbox i21393z7ess8kxfuvvyn3 | exit_code=0 | 4987ms (create 305
+/ pip 1929 / pytest 1286)
+✓ [Executor]  All tests passed!  Coverage: 92%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_A_r1\tests\test_data_structures__queues
+__queue_by_list.py
+
+(17/19) data_structures/linked_list/singly_linked_list.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\data_structures\\linked_list
+\\singly_linked_list.py'})
+✓ [Generator]  Generated test_singly_linked_list.py (495 lines, 1 file(s) read 
+via tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.92 (PASS)
+  ├─ testable coverage: 0.97
+  ├─ assertion quality: 0.95
+  ├─ mock correctness:  0.90
+  └─ code consistency:  0.88
+  Intentionally skipped (anti-gaming):
+    • main() — interactive CLI entrypoint dominated by input()/print() with no 
+branching logic; not unit-testable and correctly not mocked
+  Actionable weaknesses:
+    •  Source module's own test helpers (`test_singly_linked_list`, 
+`test_singly_linked_list_2`) are imported at module scope into the test file, 
+so pytest collects them directly AND re-runs them again inside 
+TestModuleHelpers.
+    •  TestIntegration.test_full_lifecycle and test_mixed_types_roundtrip 
+essentially duplicate test_singly_linked_list / test_singly_linked_list_2 
+already run in TestModuleHelpers.
+    •  `test_print_list_uses_print_builtin` patches `builtins.print` globally; 
+the target is technically correct (module resolves print via builtins) but it 
+is more fragile than asserting via `capsys`, which the sibling tests already 
+use.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox itaup7d07jg6sijxxtg00 | exit_code=0 | 4780ms (create 336
+/ pip 2400 / pytest 1291)
+✓ [Executor]  All tests passed!  Coverage: 80%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_A_r1\tests\test_data_structures__linked
+_list__singly_linked_list.py
+
+(18/19) conversions/decimal_to_binary.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\conversions\\decimal_to_bina
+ry.py'})
+✓ [Generator]  Generated test_decimal_to_binary.py (196 lines, 1 file(s) read 
+via tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 1.00 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 1.00
+  ├─ mock correctness:  1.00
+  └─ code consistency:  1.00
+  Intentionally skipped (anti-gaming):
+    • conversions/decimal_to_binary.py `if __name__ == "__main__"` block — 
+interactive CLI/doctest entrypoint using input() and print(), not unit-testable
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox ijqfkltib5lpya5egutk8 | exit_code=0 | 4896ms (create 420
+/ pip 2262 / pytest 1049)
+✓ [Executor]  All tests passed!  Coverage: 92%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_A_r1\tests\test_conversions__decimal_to
+_binary.py
+
+(19/19) dynamic_programming/fibonacci.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\dynamic_programming\\fibonac
+ci.py'})
+✓ [Generator]  Generated test_fibonacci.py (148 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.77 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.50
+  ├─ mock correctness:  0.90
+  └─ code consistency:  0.85
+  Intentionally skipped (anti-gaming):
+    • main() — interactive CLI loop dominated by input()/print with a `while 
+True` scheduler; excluded from the coverage denominator (tests do exist for it,
+but they are not required for coverage credit)
+    • `if __name__ == "__main__":` block — module entrypoint, not unit-testable
+  Actionable weaknesses:
+    •  Several tests assert an incorrect internal `sequence` after `get()`. 
+`get(n)` appends until length is `2 + n` (e.g. `get(5)` leaves 
+`[0,1,1,2,3,5,8]`, `get(10)` leaves 12 elements), not `n`. 
+`test_get_does_not_mutate_returned_list` (`assert fib.sequence == 
+[0,1,1,2,3]`), `test_get_extends_sequence_incrementally` (same assertion after 
+`get(5)`), and `test_get_smaller_index_after_larger` (`assert len(fib.sequence)
+== 10` after `get(10)`) will all fail at runtime.
+    •  `test_get_negative_index` expects `[]` but `Fibonacci().get(-1)` returns
+`[0]` — with an empty delta the method falls through to `self.sequence[:-1]` on
+the seed list `[0, 1]`. This test fails as written.
+    •  Ruff E501 at line 144: line too long (90 > 88) in 
+`test_main_propagates_keyboard_interrupt`'s `with` statement.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox i3dv9ahzqbopzd7karxmc | exit_code=1 | 4143ms (create 322
+/ pip 1596 / pytest 988)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 21 items
+
+test_fibonacci.py::TestFibonacciInit::test_initial_sequence PASSED       [  4%]
+test_fibonacci.py::TestFibonacciInit::test_instances_do_not_share_state PASSED 
+[  9%]
+test_fibonacci.py::TestFibonacciGe
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Retrieved 3 similar past case(s) from episodic memory (total: 
+12)
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: AssertionError
+  ├─ root cause:    The tests assume `Fibonacci.get()` leaves the internal 
+`self.sequence` truncated to `index` items, but the implementation actually 
+appends `index` new terms (growing the list to `index + 2` items) and returns a
+fresh slice `self.sequence[:index]`, so after `get(5)` the internal list is 
+`[0, 1, 1, 2, 3, 5, 8]`, after `get(10)` it has 12 items, and `get(-1)` returns
+`[0]` (slice `[:-1]`) rather than an empty list.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [51, 63, 73, 77]
+🧠 [Reflector]  Changes made:
+@@ -49,5 +49,7 @@
+-        assert fib.sequence == [0, 1, 1, 2, 3]
++        # get() returns a fresh slice; the internal cache is untouched by
++        # mutating the returned list and holds index + 2 values.
++        assert fib.sequence == [0, 1, 1, 2, 3, 5, 8]
+@@ -61,7 +63,8 @@
+-        assert fib.sequence == [0, 1, 1, 2, 3]
++        # The cache is grown to index + 2 terms.
++        assert fib.sequence == [0, 1, 1, 2, 3, 5, 8]
+-        assert fib.sequence == [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
++        assert fib.sequence == [0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89]
+@@ -70,10 +73,15 @@
+-        # Internal sequence is not truncated.
+-        assert len(fib.sequence) == 10
++        # Internal sequence is not truncated (index + 2 cached terms).
++        assert len(fib.sequence) == 12
+-        """A negative index returns an empty list (Python slice semantics)."""
+-        assert Fibonacci().get(-1) == []
++        """A negative index slices the cache from the end."""
++        fib = Fibonacci()
++        # No growth happens for negative indexes; slicing [:-1] drops the last
++        # seed element, and more negative indexes yield an empty list.
++        assert fib.get(-1) == [0]
++        assert fib.get(-2) == []
++        assert Fibonacci().get(-3) == []
+@@ -146,3 +154,3 @@
+-                main()
++                main()
+✓ [Reflector]  Patch applied, re-executing...
+🗂  [MemoryManager]  Spawned background CRUD decision for trajectory 
+(AssertionError)
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+🗂  [MemoryManager]  ADD: persisted as new trajectory (memory now: 13 live)
+   reason: The new trajectory concerns a Fibonacci cache-size assumption (get()
+returning a fresh slice while the internal sequence grows to index+2), which is
+unrelated to the three neighbors covering numpy int64 overflow, recursive mock 
+patching scope, and read-only built-in type slots.
+⚡ [Executor]  Sandbox i51l6qb2bfop5ezpbgty0 | exit_code=0 | 5081ms (create 345
+/ pip 1881 / pytest 1004)
+✓ [Executor]  All tests passed!  Coverage: 96%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_A_r1\tests\test_dynamic_programming__fi
+bonacci.py
+
+
+                              Per-module results                               
+┌──────────┬────────┬─────────┬─────────┬──────────┬──────┬─────────┬─────────┐
+│ Module   │ Status │ Retries │ EvalRej │ ExecRet… │ MemΔ │ Covera… │ Time(s) │
+├──────────┼────────┼─────────┼─────────┼──────────┼──────┼─────────┼─────────┤
+│ maths/p… │ done   │       0 │       0 │        0 │    0 │     47% │    23.9 │
+│ maths/f… │ done   │       1 │       0 │        1 │   +1 │     88% │    66.3 │
+│ maths/f… │ done   │       1 │       0 │        1 │   +1 │    100% │    44.1 │
+│ maths/g… │ done   │       1 │       0 │        1 │   +1 │     97% │    58.8 │
+│ maths/s… │ done   │       1 │       0 │        1 │   +1 │     67% │    38.7 │
+│ sorts/b… │ done   │       1 │       0 │        1 │   +1 │     58% │    51.8 │
+│ sorts/q… │ done   │       1 │       0 │        1 │   +1 │    100% │   102.3 │
+│ sorts/m… │ done   │       0 │       0 │        0 │    0 │     59% │    31.7 │
+│ sorts/i… │ done   │       2 │       0 │        2 │   +2 │       - │   100.0 │
+│ searche… │ failed │       3 │       0 │        3 │   +1 │       - │   280.2 │
+│ searche… │ done   │       1 │       0 │        1 │   +1 │     70% │    47.1 │
+│ strings… │ done   │       1 │       0 │        1 │   +1 │     78% │    56.6 │
+│ strings… │ done   │       0 │       0 │        0 │    0 │     60% │    16.3 │
+│ strings… │ done   │       0 │       0 │        0 │    0 │     78% │    17.6 │
+│ data_st… │ done   │       1 │       0 │        1 │    0 │       - │   113.2 │
+│ data_st… │ done   │       1 │       0 │        1 │   +1 │     92% │    50.4 │
+│ data_st… │ done   │       0 │       0 │        0 │    0 │     80% │    35.3 │
+│ convers… │ done   │       0 │       0 │        0 │    0 │     92% │    33.0 │
+│ dynamic… │ done   │       1 │       0 │        1 │   +1 │     96% │    46.4 │
+└──────────┴────────┴─────────┴─────────┴──────────┴──────┴─────────┴─────────┘
+
+
+                               Aggregate summary                               
+┌────────────────────────────────────────────────┬────────────────────────────┐
+│ Total modules                                  │ 19                         │
+│ One-shot pass rate                             │ 31.6%                      │
+│ Final pass rate (after self-healing)           │ 94.7%                      │
+│ Avg retries (total)                            │ 0.84                       │
+│   ├─ avg Evaluator rejects                     │ 0                          │
+│   └─ avg real Executor retries                 │ 0.84                       │
+│ Total Evaluator rejects across run             │ 0                          │
+│ Memory store size (initial → final)            │ 0 → 13  (Δ +13)            │
+│ Avg coverage                                   │ 78.9%                      │
+│ Avg wall time per module                       │ 63.9s                      │
+│ Sandbox infra failures (retried)               │ 0                          │
+│ Reflector attempts (failed) / truncated /      │ 16 (0) / 2 / 1 / 3         │
+│ parse errors / recovered                       │                            │
+│ Modules ended by infra failure                 │ 0                          │
+│ Avg time split (create / pip / pytest / LLM)   │ 0.8s / 3.8s / 2.4s / 54.5s │
+│ LLM calls / prompt / completion tokens         │ 91 / 372938 / 198810       │
+└────────────────────────────────────────────────┴────────────────────────────┘
+
+Results saved to: benchmark_results\flash\2026-10-30_A_r1.json
