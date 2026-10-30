@@ -48,6 +48,24 @@ class Settings(BaseSettings):
     # ── Agent Behavior ──────────────────────────────────────
     max_retries: int = 3
 
+    # ── Episodic Memory ─────────────────────────────────────
+    # memory_enabled=False: Reflector neither retrieves nor emits trajectories,
+    # MemoryManager is a no-op (benchmark config B).
+    memory_enabled: bool = True
+    memory_dir: str = ".auto_sdet_memory"
+    # legacy    — query = first 300 chars of pytest output; document =
+    #             "<classification>: <root_cause first sentence> [in file]";
+    #             L2-derived similarity ≥ 0.4; trajectory stored before re-run.
+    # signature — both query and document are the normalized error signature
+    #             extracted from pytest output; cosine similarity with a
+    #             calibrated threshold; outcome written after the re-run.
+    memory_variant: Literal["legacy", "signature"] = "legacy"
+    memory_cosine_threshold: Optional[float] = None   # signature variant only
+
+    # ── Experiment tracing ──────────────────────────────────
+    # JSONL file receiving retrieval / execution / memory-op events.
+    trace_file: Optional[str] = None
+
 
 def get_settings() -> Settings:
     """Factory function to create Settings instance."""

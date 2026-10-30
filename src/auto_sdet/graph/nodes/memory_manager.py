@@ -32,7 +32,7 @@ from rich.markup import escape
 from auto_sdet.models.schemas import AgentState, MemoryOperation, MemoryTrajectory
 from auto_sdet.prompts.memory_manager import build_memory_manager_prompt
 from auto_sdet.tools.llm_factory import get_llm
-from auto_sdet.tools.memory_store import MemoryStore
+from auto_sdet.tools.memory_store import MemoryStore, get_memory_store
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -87,7 +87,9 @@ def _background_process(pending: MemoryTrajectory) -> None:
     main thread — any exception is logged but never propagates to the agent.
     """
     try:
-        memory = MemoryStore()
+        memory = get_memory_store()
+        if memory is None:
+            return
 
         # ── Step 1: Retrieve neighbors (include deprecated, so Manager can see
         # what's been wrong before and avoid suggesting we re-DELETE them) ──

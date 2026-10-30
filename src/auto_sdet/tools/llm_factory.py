@@ -112,6 +112,28 @@ def get_llm(multi_turn_tool_calling: bool = False) -> BaseChatModel:
     raise ValueError(f"Unknown LLM_PROVIDER: {provider!r}")
 
 
+def describe_llm_config() -> dict:
+    """Provider / model / sampling / per-node thinking, for experiment metadata."""
+    settings = get_settings()
+    provider = settings.llm_provider
+    thinking = None
+    if provider == "deepseek":
+        # Mirrors get_llm(): only multi-turn bind_tools callers disable thinking.
+        thinking = {
+            "generator": "disabled",
+            "evaluator": "enabled",
+            "reflector": "enabled",
+            "memory_manager": "enabled",
+        }
+    return {
+        "provider": provider,
+        "model": get_provider_label().split(":", 1)[1],
+        "temperature": DEFAULT_TEMPERATURE,
+        "max_tokens": DEFAULT_MAX_TOKENS,
+        "thinking": thinking,
+    }
+
+
 def get_provider_label() -> str:
     """Human-readable label for the active provider, used in CLI logs."""
     settings = get_settings()

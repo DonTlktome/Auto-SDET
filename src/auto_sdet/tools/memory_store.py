@@ -306,6 +306,16 @@ class MemoryStore:
         )
 
 
+def get_memory_store() -> Optional[MemoryStore]:
+    """MemoryStore configured from settings, or None when memory is disabled."""
+    from auto_sdet.config import get_settings
+
+    settings = get_settings()
+    if not settings.memory_enabled:
+        return None
+    return MemoryStore(Path(settings.memory_dir))
+
+
 # ──────────────────────────────────────────────────────────────────
 # Helpers used by the Reflector node
 # ──────────────────────────────────────────────────────────────────

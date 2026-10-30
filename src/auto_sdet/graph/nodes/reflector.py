@@ -20,7 +20,7 @@ from pathlib import Path
 
 from auto_sdet.models.schemas import AgentState, ReflectionResult
 from auto_sdet.tools.llm_factory import get_llm
-from auto_sdet.tools.memory_store import MemoryStore, build_trajectory
+from auto_sdet.tools.memory_store import build_trajectory, get_memory_store
 from auto_sdet.prompts.reflector import build_reflector_prompt
 
 logger = logging.getLogger(__name__)
@@ -47,12 +47,14 @@ def reflector_node(state: AgentState) -> dict:
     # know it until the LLM classifies). The signature here is just the
     # first ~200 chars of the error, which is usually informative enough
     # for similarity search.
-    memory = MemoryStore()
+    memory = get_memory_store()
     target_file = Path(state["source_path"]).name
     query_text = f"{latest_error[:300]} [in {target_file}]"
-    similar_cases = memory.retrieve_similar(query_text, k=3)
+    similar_cases = memory.retrieve_similar(query_text, k=3) if memory else []
 
-    if similar_cases:
+    if memory is None:
+        console.print("[dim cyan]🧠 [Reflector][/]  Episodic memory disabled — skipping retrieval")
+    elif similar_cases:
         console.print(
             f"[dim cyan]🧠 [Reflector][/]  Retrieved {len(similar_cases)} similar past case(s) "
             f"from episodic memory (total: {memory.count()})"
@@ -165,20 +167,22 @@ def reflector_node(state: AgentState) -> dict:
     # decides ADD / UPDATE / DELETE / NOOP based on what's already in store.
     # This is the Memory-R1 (Lu 2025) upgrade over Reflexion's append-only
     # model — see graph/nodes/memory_manager.py for rationale.
+    # With memory disabled nothing is emitted, so MemoryManager is a no-op.
     pending_trajectory = None
-    try:
-        pending_trajectory = build_trajectory(
-            error_classification=result.error_classification,
-            root_cause=result.root_cause,
-            fix_strategy=result.fix_strategy,
-            fix_summary=_extract_fix_summary(diff),
-            target_file=target_file,
-            outcome="fix_applied",
-        )
-    except Exception as e:
-        # Trajectory build failure is non-fatal — Memory Manager will
-        # see pending_trajectory=None and skip its CRUD logic.
-        logger.warning(f"Failed to build pending trajectory: {e}")
+    if memory is not None:
+        try:
+            pending_trajectory = build_trajectory(
+                error_classification=result.error_classification,
+                root_cause=result.root_cause,
+                fix_strategy=result.fix_strategy,
+                fix_summary=_extract_fix_summary(diff),
+                target_file=target_file,
+                outcome="fix_applied",
+            )
+        except Exception as e:
+            # Trajectory build failure is non-fatal — Memory Manager will
+            # see pending_trajectory=None and skip its CRUD logic.
+            logger.warning(f"Failed to build pending trajectory: {e}")
 
     # ── Step 7: Return updated state ────────────────────
     return {

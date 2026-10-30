@@ -37,3 +37,6 @@ build/
 .DS_Store
 Thumbs.db
 .claude/
+
+# Per-run ChromaDB stores written by scripts/benchmark.py (binary; trace.jsonl is kept)
+benchmark_results/runs/*/memory/

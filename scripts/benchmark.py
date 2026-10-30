@@ -1,18 +1,35 @@
 """
-Benchmark script — runs Auto-SDET against a fixed list of modules
-and reports one-shot pass rate, final pass rate, retry distribution,
-average duration, and average coverage.
+Benchmark script — runs Auto-SDET against a fixed, ordered list of modules
+under one named configuration and reports one-shot pass rate, final pass
+rate, retry distribution, coverage, time breakdown and infra failures.
+
+Every run writes a self-describing result file (git commit, model, thinking,
+memory / ruff switches, retry cap, module order, start / end time) to
+`benchmark_results/<date>_<config>_r<n>.json`; existing files are never
+overwritten. Per-run artifacts (generated tests, memory store, event trace)
+live under `benchmark_results/runs/<date>_<config>_r<n>/`.
+
+Configurations:
+    A  final architecture, episodic memory ON (legacy retrieval), empty store
+    B  same as A with memory OFF (no retrieval, no writes)
+    C  A + memory fixes (signature retrieval, cosine threshold, verified outcome)
 
 Usage:
-    python scripts/benchmark.py
-    python scripts/benchmark.py --bench-dir D:/path/to/algorithms-bench
-    python scripts/benchmark.py --output results.json
+    python scripts/benchmark.py --config A --run-index 1
+    python scripts/benchmark.py --config B --run-index 1 --limit 3     # smoke
+    python scripts/benchmark.py --config A --run-index 1 --resume      # after a crash
 """
 from __future__ import annotations
 
 import argparse
+import importlib.metadata
 import json
+import os
+import platform
+import subprocess
+import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from statistics import mean
 
@@ -27,8 +44,14 @@ from auto_sdet.tools.llm_usage import LLMUsageTracker
 
 console = Console()
 
-# ── Default 20 benchmark targets (relative to --bench-dir) ──
-DEFAULT_TARGETS = [
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+# ── Benchmark targets (relative to --bench-dir), fixed order ──
+# 19 modules. `conversions/celsius_to_fahrenheit.py` from the original list
+# does not exist in the pinned TheAlgorithms checkout and was always skipped;
+# it is removed so the list matches what actually runs. Modules are keyed by
+# relative path because two of them share the basename `fibonacci.py`.
+BENCH_MODULES = [
     "maths/prime_check.py",
     "maths/fibonacci.py",
     "maths/factorial.py",
@@ -47,16 +70,32 @@ DEFAULT_TARGETS = [
     "data_structures/queues/queue_by_list.py",
     "data_structures/linked_list/singly_linked_list.py",
     "conversions/decimal_to_binary.py",
-    "conversions/celsius_to_fahrenheit.py",
     "dynamic_programming/fibonacci.py",
 ]
+
+# Environment each configuration runs under (read by auto_sdet.config.Settings).
+CONFIGS = {
+    "A": {
+        "description": "5-node FSM + ruff dual-source gate + asymmetric routing + Memory-R1 memory (legacy retrieval), empty store",
+        "env": {"MEMORY_ENABLED": "true", "MEMORY_VARIANT": "legacy"},
+    },
+    "B": {
+        "description": "Same as A with episodic memory OFF (no retrieval, no trajectory writes)",
+        "env": {"MEMORY_ENABLED": "false", "MEMORY_VARIANT": "legacy"},
+    },
+    "C": {
+        "description": "A + memory fixes: error-signature query/document, cosine threshold, outcome after re-run, module-path keys",
+        "env": {"MEMORY_ENABLED": "true", "MEMORY_VARIANT": "signature"},
+    },
+}
 
 
 def _memory_size_safe() -> int | None:
     """Read live trajectory count without crashing if the store is unavailable."""
     try:
-        from auto_sdet.tools.memory_store import MemoryStore
-        return MemoryStore().count()
+        from auto_sdet.tools.memory_store import get_memory_store
+        store = get_memory_store()
+        return store.count() if store else None
     except Exception:
         return None
 
@@ -89,15 +128,18 @@ def _time_breakdown(timings: dict, llm: dict, wall_time: float) -> dict:
     }
 
 
-def run_one(target: Path, output_dir: Path, max_retries: int) -> dict:
-    """Run auto-sdet on one file and return a metrics dict."""
+def run_one(bench_dir: Path, module: str, output_dir: Path, max_retries: int) -> dict:
+    """Run auto-sdet on one module (path relative to bench_dir) and return a metrics dict."""
+    target = bench_dir / module
     mem_before = _memory_size_safe()
     tracker = LLMUsageTracker()
     start = time.time()
     try:
         final_state = run_agent(
             target_path=target,
-            output_path=output_dir / f"test_{target.name}",
+            # Path-derived name: maths/fibonacci.py and dynamic_programming/fibonacci.py
+            # must not overwrite each other.
+            output_path=output_dir / f"test_{module.replace('/', '__')}",
             max_retries=max_retries,
             verbose=False,
             callbacks=[tracker],
@@ -109,6 +151,7 @@ def run_one(target: Path, output_dir: Path, max_retries: int) -> dict:
         mem_after = _memory_size_safe()
         llm = tracker.summary()
         return {
+            "module": module,
             "file": str(target.name),
             "status": final_state.get("status"),
             "retry_count": retry_count,
@@ -132,6 +175,7 @@ def run_one(target: Path, output_dir: Path, max_retries: int) -> dict:
         }
     except Exception as e:
         return {
+            "module": module,
             "file": str(target.name),
             "status": "error",
             "retry_count": 0,
@@ -203,8 +247,8 @@ def summarize(results: list[dict]) -> dict:
 
 
 def print_table(results: list[dict]) -> None:
-    table = Table(title="Per-file results")
-    table.add_column("File", style="cyan")
+    table = Table(title="Per-module results")
+    table.add_column("Module", style="cyan")
     table.add_column("Status")
     table.add_column("Retries", justify="right")
     table.add_column("EvalRej", justify="right")
@@ -218,12 +262,13 @@ def print_table(results: list[dict]) -> None:
             "done": "[green]done[/]",
             "failed": "[red]failed[/]",
             "error": "[yellow]error[/]",
+            "infra_failed": "[yellow]infra_failed[/]",
         }.get(r["status"], r["status"])
         cov = f"{r['coverage_pct']}%" if r["coverage_pct"] is not None else "-"
         mem_delta = r.get("memory_delta")
         mem_delta_str = f"+{mem_delta}" if mem_delta and mem_delta > 0 else (str(mem_delta) if mem_delta is not None else "-")
         table.add_row(
-            r["file"],
+            r.get("module", r["file"]),
             status_color,
             str(r["retry_count"]),
             str(r.get("evaluator_rejects", 0)),
@@ -255,11 +300,94 @@ def print_summary(summary: dict) -> None:
     avg_cov = summary["avg_coverage_pct"]
     table.add_row("Avg coverage", f"{avg_cov}%" if avg_cov is not None else "-")
     table.add_row("Avg wall time per module", f"{summary['avg_wall_time_s']}s")
+    table.add_row("Sandbox infra failures (retried)", str(summary.get("total_infra_failures", 0)))
+    table.add_row("Modules ended by infra failure", str(summary.get("infra_failed_modules", 0)))
+    breakdown = summary.get("avg_time_breakdown_s")
+    if breakdown:
+        table.add_row(
+            "Avg time split (create / pip / pytest / LLM)",
+            f"{breakdown['sandbox_create_s']}s / {breakdown['pip_install_s']}s / "
+            f"{breakdown['pytest_s']}s / {breakdown['llm_total_s']}s",
+        )
+    table.add_row("LLM calls / prompt / completion tokens",
+                  f"{summary.get('total_llm_calls', 0)} / {summary.get('total_prompt_tokens', 0)} / "
+                  f"{summary.get('total_completion_tokens', 0)}")
     console.print(table)
+
+
+def _git(*args: str, cwd: Path = REPO_ROOT) -> str:
+    try:
+        return subprocess.check_output(["git", *args], cwd=cwd, text=True, stderr=subprocess.DEVNULL).strip()
+    except Exception:
+        return ""
+
+
+def _package_versions() -> dict[str, str]:
+    versions = {}
+    for pkg in ("langgraph", "langchain-core", "langchain-deepseek", "chromadb", "e2b", "e2b-code-interpreter", "ruff"):
+        try:
+            versions[pkg] = importlib.metadata.version(pkg)
+        except importlib.metadata.PackageNotFoundError:
+            versions[pkg] = None
+    return versions
+
+
+def build_metadata(args: argparse.Namespace, run_name: str, modules: list[str], memory_dir: Path) -> dict:
+    """Everything needed to tie a result file back to the code and settings that produced it."""
+    from auto_sdet.config import get_settings
+    from auto_sdet.graph.nodes.evaluator import PASS_THRESHOLD, WARN_THRESHOLD
+    from auto_sdet.tools import e2b_sandbox
+    from auto_sdet.tools.llm_factory import describe_llm_config
+
+    settings = get_settings()
+    dirty = [line.split(maxsplit=1)[1] for line in _git("status", "--porcelain", "--untracked-files=no").splitlines() if line.strip()]
+    memory = {
+        "enabled": settings.memory_enabled,
+        "variant": settings.memory_variant if settings.memory_enabled else None,
+        "initial_state": "empty" if settings.memory_enabled else None,
+        "dir": memory_dir.as_posix() if settings.memory_enabled else None,
+    }
+    if settings.memory_enabled and settings.memory_variant == "legacy":
+        memory["similarity"] = {"metric": "1/(1+squared_l2)", "threshold": 0.4, "top_k": 3}
+    elif settings.memory_enabled:
+        memory["similarity"] = {"metric": "cosine", "threshold": settings.memory_cosine_threshold, "top_k": 3}
+
+    return {
+        "run_name": run_name,
+        "config": args.config,
+        "config_description": CONFIGS[args.config]["description"],
+        "run_index": args.run_index,
+        "git_commit": _git("rev-parse", "HEAD"),
+        "git_dirty_files": dirty,
+        "llm": describe_llm_config(),
+        "langsmith_tracing": os.environ.get("LANGCHAIN_TRACING_V2", "").lower() == "true",
+        "memory": memory,
+        "ruff_enabled": True,
+        "evaluator": {"pass_threshold": PASS_THRESHOLD, "warn_threshold": WARN_THRESHOLD, "reject_cap": 2},
+        "max_retries": args.max_retries,
+        "sandbox": {
+            "pytest_timeout_s": settings.e2b_sandbox_timeout,
+            "sandbox_lifetime_s": settings.e2b_sandbox_timeout + e2b_sandbox.SANDBOX_LIFETIME_MARGIN_S,
+            "infra_max_attempts": e2b_sandbox.INFRA_MAX_ATTEMPTS,
+            "base_packages": list(e2b_sandbox.BASE_TEST_PACKAGES),
+            "template": "e2b code-interpreter default",
+        },
+        "module_order": modules,
+        "bench_dir": args.bench_dir.as_posix(),
+        "bench_commit": _git("rev-parse", "HEAD", cwd=args.bench_dir),
+        "python": sys.version.split()[0],
+        "platform": platform.platform(),
+        "packages": _package_versions(),
+        "note": args.note,
+        "started_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "finished_at": None,
+    }
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Auto-SDET benchmark runner")
+    parser.add_argument("--config", choices=sorted(CONFIGS), required=True, help="Experiment configuration")
+    parser.add_argument("--run-index", type=int, required=True, help="Repeat number (1, 2, 3, ...)")
     parser.add_argument(
         "--bench-dir",
         type=Path,
@@ -267,58 +395,81 @@ def main() -> None:
         help="Root directory containing benchmark target files",
     )
     parser.add_argument(
-        "--output-dir",
+        "--results-dir",
         type=Path,
-        default=Path("benchmark_results/tests"),
-        help="Where to save generated test files",
+        default=REPO_ROOT / "benchmark_results",
+        help="Where result files and per-run artifacts are written",
     )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=Path("benchmark_results/results.json"),
-        help="JSON file to save raw results",
-    )
-    parser.add_argument(
-        "--max-retries",
-        type=int,
-        default=3,
-        help="Max self-healing retries per file",
-    )
-    parser.add_argument(
-        "--limit",
-        type=int,
-        default=None,
-        help="Run only the first N targets (for quick testing)",
-    )
+    parser.add_argument("--date", default=datetime.now().strftime("%Y-%m-%d"),
+                        help="Date prefix of the result file name (default: today)")
+    parser.add_argument("--max-retries", type=int, default=3, help="Max self-healing retries per file")
+    parser.add_argument("--limit", type=int, default=None, help="Run only the first N modules (smoke test)")
+    parser.add_argument("--resume", action="store_true", help="Continue an interrupted run, skipping finished modules")
+    parser.add_argument("--note", default="", help="Free-form note stored in metadata (e.g. concurrency)")
     args = parser.parse_args()
 
     if not args.bench_dir.exists():
         console.print(f"[bold red]Error:[/] bench dir does not exist: {args.bench_dir}")
         console.print("[dim]Hint: clone https://github.com/TheAlgorithms/Python to that path[/]")
-        return
+        sys.exit(1)
 
-    args.output_dir.mkdir(parents=True, exist_ok=True)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
+    modules = BENCH_MODULES[: args.limit] if args.limit else BENCH_MODULES
+    missing = [m for m in modules if not (args.bench_dir / m).exists()]
+    if missing:
+        # A silently skipped module changes the denominator — refuse to run.
+        console.print(f"[bold red]Error:[/] benchmark modules missing: {missing}")
+        sys.exit(1)
 
-    targets = DEFAULT_TARGETS[: args.limit] if args.limit else DEFAULT_TARGETS
+    suffix = f"_limit{args.limit}" if args.limit else ""
+    run_name = f"{args.date}_{args.config}_r{args.run_index}{suffix}"
+    output = args.results_dir / f"{run_name}.json"
+    run_dir = args.results_dir / "runs" / run_name
+    tests_dir = run_dir / "tests"
+    memory_dir = run_dir / "memory"
 
-    console.print(f"\n[bold]Running benchmark on {len(targets)} modules[/]\n")
-    results = []
+    # ── Configure the agent for this run (read lazily by Settings) ──
+    os.environ.update(CONFIGS[args.config]["env"])
+    os.environ["MEMORY_DIR"] = str(memory_dir)
+    os.environ["TRACE_FILE"] = str(run_dir / "trace.jsonl")
 
-    for i, rel_path in enumerate(targets, 1):
-        target = args.bench_dir / rel_path
-        if not target.exists():
-            console.print(f"[yellow]({i}/{len(targets)}) SKIP {rel_path} (not found)[/]")
+    results: list[dict] = []
+    if output.exists():
+        if not args.resume:
+            console.print(f"[bold red]Error:[/] {output} already exists — refusing to overwrite (use --resume)")
+            sys.exit(1)
+        previous = json.loads(output.read_text(encoding="utf-8"))
+        metadata = previous["metadata"]
+        if metadata.get("git_commit") != _git("rev-parse", "HEAD"):
+            console.print("[bold red]Error:[/] code changed since this run started — cannot resume")
+            sys.exit(1)
+        results = previous["results"]
+        metadata.setdefault("resumed_at", []).append(datetime.now(timezone.utc).isoformat(timespec="seconds"))
+    else:
+        if memory_dir.exists() and any(memory_dir.iterdir()):
+            console.print(f"[bold red]Error:[/] memory dir {memory_dir} is not empty — runs must start from an empty store")
+            sys.exit(1)
+        metadata = build_metadata(args, run_name, modules, memory_dir)
+
+    tests_dir.mkdir(parents=True, exist_ok=True)
+    done_modules = {r["module"] for r in results}
+
+    console.print(f"\n[bold]Run {run_name}: {len(modules)} modules — {CONFIGS[args.config]['description']}[/]\n")
+
+    def _persist() -> None:
+        payload = {"metadata": metadata, "summary": summarize(results), "results": results}
+        output.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    for i, module in enumerate(modules, 1):
+        if module in done_modules:
+            console.print(f"[dim]({i}/{len(modules)}) {module} — already done, skipping[/]")
             continue
+        console.print(f"\n[bold cyan]({i}/{len(modules)}) {module}[/]")
+        results.append(run_one(args.bench_dir, module, tests_dir, args.max_retries))
+        # Persist after every module so a crash loses at most one module.
+        _persist()
 
-        console.print(f"\n[bold cyan]({i}/{len(targets)}) {rel_path}[/]")
-        result = run_one(target, args.output_dir, args.max_retries)
-        results.append(result)
-
-        # Persist after each run so partial progress is saved + summary is
-        # always queryable mid-run for live monitoring.
-        partial = {"summary": summarize(results), "results": results}
-        args.output.write_text(json.dumps(partial, indent=2, ensure_ascii=False), encoding="utf-8")
+    metadata["finished_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    _persist()
 
     console.print("\n")
     print_table(results)
@@ -326,10 +477,7 @@ def main() -> None:
     if summary:
         console.print("\n")
         print_summary(summary)
-        # Append summary to JSON
-        full = {"summary": summary, "results": results}
-        args.output.write_text(json.dumps(full, indent=2, ensure_ascii=False), encoding="utf-8")
-        console.print(f"\n[bold green]Results saved to:[/] {args.output}")
+    console.print(f"\n[bold green]Results saved to:[/] {output}")
 
 
 if __name__ == "__main__":
