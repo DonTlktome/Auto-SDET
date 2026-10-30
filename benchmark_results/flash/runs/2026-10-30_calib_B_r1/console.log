@@ -1,0 +1,1044 @@
+
+Run 2026-10-30_calib_B_r1: 12 modules — Same as A with episodic memory OFF (no 
+retrieval, no trajectory writes)
+
+
+(1/12) maths/perfect_number.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\maths\\perfect_number.py'})
+✓ [Generator]  Generated test_perfect_number.py (170 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.96 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.95
+  ├─ mock correctness:  0.90
+  └─ code consistency:  1.00
+  Intentionally skipped (anti-gaming):
+    • __main__ CLI block — interactive input()/print wrapper, not a 
+unit-testable region and excluded from the coverage denominator.
+  Actionable weaknesses:
+    •  The `__main__` tests use `runpy.run_module` and therefore re-run the 
+module's embedded `doctest.testmod()` suite on every CLI test, including the 
+expensive `perfect(33550336)` / `perfect(33550337)` doctests.
+    •  `test_perfect_raises_value_error_for_non_int` includes `True` in a 
+ValueError parameter set and then branches inside the test to assert 
+bool-as-int behavior, making the test name and contract mixed.
+    •  Patching `builtins.print` globally is broad and can swallow output from 
+`doctest.testmod()` invoked by the module's `__main__` block, reducing 
+observability if doctests fail.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox ie3fiq5i9ku6jfbdinnz5 | exit_code=1 | 10820ms (create 
+1184 / pip 2072 / pytest 6546)
+✗ [Executor]  Tests failed:
+ImportError'>
+
+>   ???
+
+<frozen runpy>:133: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+name = 'maths.perfect_number', package = None
+
+>   ???
+E   ModuleNotFoundError: No module named 'maths'
+
+<frozen importlib.util>:91: ModuleNotFoundError
+
+The above exception was the direct cause of the following exception:
+
+    def test_main_block_prints_perfect_message():
+        """Running the module as a script with a perfect number prints the 
+message."""
+        with
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Episodic memory disabled — skipping retrieval
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: ImportError
+  ├─ root cause:    The __main__ tests use 
+runpy.run_module("maths.perfect_number", ...), which resolves the module 
+through sys.path at runtime; in this environment the parent package `maths` is 
+only importable through pytest's already-imported module context, so runpy 
+raises `ModuleNotFoundError: No module named 'maths'`.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [139, 149, 160, 167]
+🧠 [Reflector]  Changes made:
+@@ -2,4 +2,5 @@
++import inspect
+@@ -8,4 +9,25 @@
++
++
++# Absolute path to the source file backing the imported module.  It is used to
++# execute the module's ``__main__`` block without relying on ``sys.path``.
++MODULE_FILE = inspect.getfile(perfect)
++
++
++def _run_as_script():
++    """Execute the module's source as if it were run via ``python -m``.
++
++    ``runpy.run_module`` cannot be used here because it resolves the module
++    through ``sys.path``, which does not necessarily contain the ``maths``
++    package when pytest imports the test module directly.  ``runpy.run_path``
++    only needs the file that actually backs the imported module, so it works
++    regardless of how the test module itself was imported.
++
++    The module's doctest suite is stubbed out so this helper exercises only 
+the
++    interactive ``__main__`` block.
++    """
++    with patch("doctest.testmod"):
++        return runpy.run_path(MODULE_FILE, run_name="__main__")
+@@ -137,5 +159,5 @@
+-            runpy.run_module("maths.perfect_number", run_name="__main__")
++            _run_as_script()
+@@ -147,5 +169,5 @@
+-            runpy.run_module("maths.perfect_number", run_name="__main__")
++            _run_as_script()
+@@ -158,5 +180,5 @@
+-                runpy.run_module("maths.perfect_number", run_name="__main__")
++                _run_as_script()
+@@ -165,6 +187,6 @@
+-            runpy.run_module("maths.perfect_number", run_name="__main__")
++            _run_as_script()
+-    assert "28 is a Perfect Number." in printed
++    assert "28 is a Perfect Number." in printed
+✓ [Reflector]  Patch applied, re-executing...
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox irkwtcejyrqmfjhpfy5va | exit_code=0 | 8674ms (create 857
+/ pip 2632 / pytest 3816)
+✓ [Executor]  All tests passed!  Coverage: 100%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_calib_B_r1\tests\test_maths__perfect_nu
+mber.py
+
+(2/12) maths/lucas_series.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\maths\\lucas_series.py'})
+✓ [Generator]  Generated test_lucas_series.py (159 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.95 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.95
+  ├─ mock correctness:  1.00
+  └─ code consistency:  0.88
+  Intentionally skipped (anti-gaming):
+    • `if __name__ == "__main__":` block — CLI/doctest runner that reads 
+`input()`, prints series, and has no return value; unit-testing it would 
+require interactive-IO mocking that verifies nothing
+    • `doctest.testmod()` invocation inside the main guard — covered implicitly
+by the docstring examples themselves, but not unit-testable without invoking 
+the CLI path
+  Actionable weaknesses:
+    •  Ruff E501 at line 78: docstring in 
+`test_recursive_lucas_number_accepts_bool_as_int` exceeds 88 chars
+    •  `sys.path.insert(0, ...)` at import time is a fragile path hack that can
+shadow the installed package or break under a different rootdir/pytest 
+importmode
+    •  `test_recursive_lucas_number_negative_input_raises_recursion_error` 
+asserts on an incidental crash (unbounded recursion) rather than intended 
+behavior, making the test tied to the interpreter's recursion limit
+    •  `test_*_returns_int_type` uses only `isinstance` assertions 
+(medium-strength) and duplicates what parametrized equality tests already 
+guarantee
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox i2vnefwo85fsw80sfsfk8 | exit_code=0 | 4616ms (create 420
+/ pip 2042 / pytest 1446)
+✓ [Executor]  All tests passed!  Coverage: 70%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_calib_B_r1\tests\test_maths__lucas_seri
+es.py
+
+(3/12) sorts/selection_sort.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\sorts\\selection_sort.py'})
+✓ [Generator]  Generated test_selection_sort.py (113 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.96 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.95
+  ├─ mock correctness:  1.00
+  └─ code consistency:  0.90
+  Intentionally skipped (anti-gaming):
+    • if __name__ == "__main__" block (lines 27-31) — interactive CLI that 
+reads input(), parses comma-separated ints, and prints; purely interactive IO 
+with no unit-testable logic beyond the already-covered selection_sort call
+  Actionable weaknesses:
+    •  test_selection_sort_does_not_mutate_length only asserts len(data) is 
+unchanged, which is a weak assertion that does not verify the actual sorted 
+content
+    •  File mixes class-based tests 
+(TestSelectionSortPositive/TestSelectionSortEdgeCases) with module-level test 
+functions, a minor structural inconsistency
+    •  Import relies on 'sorts' being an importable package (from 
+sorts.selection_sort import ...) without any __init__.py guarantee shown
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox iunawq4bcotawgz4basdn | exit_code=0 | 4648ms (create 305
+/ pip 2211 / pytest 1109)
+✓ [Executor]  All tests passed!  Coverage: 73%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_calib_B_r1\tests\test_sorts__selection_
+sort.py
+
+(4/12) sorts/heap_sort.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\sorts\\heap_sort.py'})
+✓ [Generator]  Generated test_heap_sort.py (211 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.94 (PASS)
+  ├─ testable coverage: 0.95
+  ├─ assertion quality: 0.92
+  ├─ mock correctness:  1.00
+  └─ code consistency:  0.90
+  Intentionally skipped (anti-gaming):
+    • `if __name__ == "__main__":` block in heap_sort.py — interactive CLI with
+`input()`, doctest runner, and print wrapper; not unit-testable without 
+capturing stdin/argv and yields no meaningful assertion value
+    • doctest examples embedded in heapify/heap_sort docstrings — already 
+exercised via dedicated unit tests with identical inputs; no need to re-run 
+doctest harness
+  Actionable weaknesses:
+    •  Redundant test cases: `test_heap_sort_empty_list` and 
+`test_heap_sort_single_element` duplicate entries already present in the 
+`test_heap_sort_returns_ascending_order` parametrization, and 
+`test_heap_sort_does_not_use_external_dependencies` is just another 
+ascending-sort assertion whose name overpromises what the body verifies
+    •  Helper `_assert_max_heap` is defined after the test that uses it 
+(module-level resolution works, but ordering hurts readability)
+    •  `test_heapify_empty_list_is_unchanged` and 
+`test_heapify_leaf_node_is_unchanged` exercise inputs outside the documented 
+contract (heapify is not specified for empty lists or leaf-index calls) — 
+harmless guard tests but they assert behavior the source's docstring never 
+promises
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox iv0spdic7p2mefjy5gnzv | exit_code=1 | 4370ms (create 292
+/ pip 1778 / pytest 1066)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 34 items
+
+test_heap_sort.py::test_heapify_restores_max_heap_property_at_root PASSED [  
+2%]
+test_heap_sort.py::test_heapify_is_idempotent_once_heap_property_holds PASSED [
+5%]
+test_heap_sort.py::test_heapify_re
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Episodic memory disabled — skipping retrieval
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: AssertionError
+  ├─ root cause:    The parametrized case ([1, 4, 3, 5, 2], 0) violates 
+heapify's precondition (child subtrees must already be max-heaps), so a single 
+heapify call correctly produces [4, 5, 3, 1, 2] per the source doctest but does
+not satisfy the full max-heap invariant asserted by the test helper.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [105, 118, 129]
+🧠 [Reflector]  Changes made:
+@@ -100,8 +100,13 @@
++# ``heapify`` only guarantees a valid heap for the subtree rooted at ``index``
++# when its child subtrees are *already* valid max-heaps (that is precisely how
++# ``heap_sort`` builds the heap, bottom-up).  The parametrised inputs below
++# therefore satisfy that precondition, otherwise a single call could not
++# establish the max-heap rule along the whole sifted path.
+-        ([1, 4, 3, 5, 2], 0),
++        ([1, 5, 3, 2, 4], 0),
+@@ -209,3 +214,3 @@
+-    assert heap_sort(unsorted) == [1, 3, 7, 9]
++    assert heap_sort(unsorted) == [1, 3, 7, 9]
+✓ [Reflector]  Patch applied, re-executing...
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox iu48gzjeuvgj18kclaoul | exit_code=0 | 6633ms (create 325
+/ pip 1931 / pytest 1476)
+✓ [Executor]  All tests passed!  Coverage: 77%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_calib_B_r1\tests\test_sorts__heap_sort.
+py
+
+(5/12) sorts/counting_sort.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\sorts\\counting_sort.py'})
+✓ [Generator]  Generated test_counting_sort.py (191 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.96 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.90
+  ├─ mock correctness:  1.00
+  └─ code consistency:  0.95
+  Intentionally skipped (anti-gaming):
+    • module-level `if __name__ == "__main__":` block — CLI entrypoint using 
+input()/print and a manual assertion, not suitable for unit testing
+  Actionable weaknesses:
+    •  test_counting_sort_stability_with_tuples_of_ints is misnamed: it passes 
+integers, not tuples, and does not actually verify stability of equal-key 
+records.
+    •  Several edge cases are duplicated across individual tests and 
+parametrized tests (empty input, single element, already sorted, reverse 
+sorted).
+    •  test_counting_sort_returns_new_list only asserts object identity and 
+does not verify the returned value.
+    •  test_counting_sort_string_preserves_length is a weak property test whose
+behavior is already covered by equality assertions.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox i5ws1pnj5f7ztzyyafgyh | exit_code=0 | 5144ms (create 315
+/ pip 2340 / pytest 1751)
+✓ [Executor]  All tests passed!  Coverage: 83%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_calib_B_r1\tests\test_sorts__counting_s
+ort.py
+
+(6/12) searches/jump_search.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\searches\\jump_search.py'})
+✓ [Generator]  Generated test_jump_search.py (156 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.94 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.95
+  ├─ mock correctness:  0.90
+  └─ code consistency:  0.90
+  Intentionally skipped (anti-gaming):
+    • if __name__ == "__main__": interactive CLI block — input()/print 
+entrypoint, excluded from testable coverage denominator
+  Actionable weaknesses:
+    •  The CLI __main__ block is tested via runpy, which is outside normal 
+unit-test scope and is more fragile than valuable.
+    •  runpy is imported twice inside individual test bodies rather than once 
+at module scope, creating minor style inconsistency.
+    •  test_block_size_uses_sqrt asserts an exact math.sqrt call, coupling the 
+test to an implementation detail rather than behavior.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox ivzznxtgvb8tm1cswunnx | exit_code=1 | 4442ms (create 309
+/ pip 1612 / pytest 1096)
+✗ [Executor]  Tests failed:
+ImportError'>
+
+>   ???
+
+<frozen runpy>:133: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+name = 'searches.jump_search', package = None
+
+>   ???
+E   ModuleNotFoundError: No module named 'searches'
+
+<frozen importlib.util>:91: ModuleNotFoundError
+
+The above exception was the direct cause of the following exception:
+
+self = <test_jump_search.TestJumpSearchMainBlock object at 0x7f736a157d90>
+capsys = <_pytest.capture.CaptureFixture object at 0x7f736a075010>
+
+   
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Episodic memory disabled — skipping retrieval
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: ImportError
+  ├─ root cause:    The tests reference the module by the dotted name 
+"searches.jump_search" (via pkgutil.resolve_name for patch and 
+runpy.run_module), but that name is not resolvable as an importable module path
+in the test environment, so patching and run_module raise ModuleNotFoundError 
+even though the direct `from searches.jump_search import jump_search` import 
+worked.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [123, 144, 154]
+🧠 [Reflector]  Changes made:
+@@ -1,10 +1,18 @@
++import inspect
+-from unittest.mock import patch
++import sys
++from types import SimpleNamespace
++from unittest.mock import Mock, patch
++
++# Resolve the path and the module object of the implementation once, so the
++# tests below never depend on the dotted module name being importable.
++SOURCE_PATH = inspect.getsourcefile(jump_search)
++JUMP_SEARCH_MODULE = sys.modules[jump_search.__module__]
+@@ -121,7 +129,8 @@
+-        with patch("searches.jump_search.math.sqrt", wraps=math.sqrt) as 
+mock_sqrt:
++        fake_math = SimpleNamespace(sqrt=Mock(wraps=math.sqrt))
++        with patch.object(JUMP_SEARCH_MODULE, "math", fake_math):
+-        mock_sqrt.assert_called_once_with(16)
++        fake_math.sqrt.assert_called_once_with(16)
+@@ -142,5 +151,5 @@
+-            runpy.run_module("searches.jump_search", run_name="__main__")
++            runpy.run_path(SOURCE_PATH, run_name="__main__")
+@@ -152,5 +161,5 @@
+-            runpy.run_module("searches.jump_search", run_name="__main__")
++            runpy.run_path(SOURCE_PATH, run_name="__main__")
+-        assert "Number not found!" in captured.out
++        assert "Number not found!" in captured.out
+✓ [Reflector]  Patch applied, re-executing...
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox iaynnkxafsfb5up946ztg | exit_code=0 | 4138ms (create 305
+/ pip 1718 / pytest 1433)
+✓ [Executor]  All tests passed!  Coverage: 97%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_calib_B_r1\tests\test_searches__jump_se
+arch.py
+
+(7/12) searches/ternary_search.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\searches\\ternary_search.py'
+})
+✓ [Generator]  Generated test_ternary_search.py (254 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.85 (PASS)
+  ├─ testable coverage: 0.95
+  ├─ assertion quality: 0.70
+  ├─ mock correctness:  0.95
+  └─ code consistency:  0.90
+  Intentionally skipped (anti-gaming):
+    • if __name__ == "__main__" block — CLI entrypoint combining 
+doctest.testmod(), two input() prompts with int parsing, an assert on user 
+data, and print output; no unit-testable logic
+    • doctest.testmod() invocation inside the __main__ guard — test-suite 
+runner wiring, not application logic
+  Actionable weaknesses:
+    •  Several tests assert results the implementation does not produce for 
+large sorted lists. ite_ternary_search/rec_ternary_search drift 
+(one_third/two_third recomputed from a growing [left, right] window) and 
+eventually index past the end of the list, e.g. 
+ite_ternary_search(list(range(100)), 99), rec_ternary_search(0, 99, 
+list(range(100)), 99), ite_ternary_search(list(range(0, 200, 2)), 101), 
+rec_ternary_search(0, 99, list(range(0, 200, 2)), 101) raise IndexError instead
+of returning the asserted value. test_*_all_elements_found and 
+test_*_first_and_last_elements will therefore fail.
+    •  test_iterative_and_recursive_agree assumes identical bound conventions, 
+but ite_ternary_search uses right = len(array) (exclusive) while the test calls
+rec_ternary_search(0, len(array) - 1, ...) (inclusive). They legitimately 
+disagree on the final element of short lists — e.g. array [1, 2], target 2 
+gives 1 from the iterative version and -1 from the recursive one — so the 
+cross-implementation assertions fail.
+    •  test_ite_ternary_search_precision_is_positive only asserts 
+isinstance(precision, int) and precision > 0 on a module constant — a low-value
+assertion that does not exercise any behaviour.
+    •  Duplication and import-style inconsistency: the empty-list case appears 
+both in the parametrized doctest table and again as 
+test_ite_ternary_search_empty_list_returns_minus_one, and tests mix a top-level
+`from searches.ternary_search import ...` with function-local `import 
+searches.ternary_search as module`.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox ivoy8ei1c6010tmvagty7 | exit_code=1 | 6637ms (create 587
+/ pip 3174 / pytest 2140)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 53 items
+
+test_ternary_search.py::test_lin_search_documented_examples[0-4-array0-7-3] 
+PASSED [  1%]
+test_ternary_search.py::test_lin_search_documented_examples[0-3-array1-7--1] 
+PASSED [  3%]
+test_ternary_search
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Episodic memory disabled — skipping retrieval
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: AssertionError
+  ├─ root cause:    The tests call `rec_ternary_search` with an inclusive upper
+bound (`len(array) - 1`) even though the function treats `right` as exclusive, 
+and they exercise the iterative/recursive ternary split path with lists longer 
+than `precision`, which is broken in the module and raises IndexError or 
+misreports indices; only the `lin_search` delegation path (ranges shorter than 
+`precision`) is reliable.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [92, 94, 99, 101, 105, 107, 178, 180, 183, 187, 190, 194, 
+196, 216, 244, 246, 248, 250]
+🧠 [Reflector]  Changes made:
+@@ -89,13 +89,18 @@
+-    """Boundary elements of a sorted list are found."""
+-    array = list(range(100))
++    """Boundary elements of a sorted list are found.
++
++    The list is kept shorter than ``precision`` so that the search delegates 
+to
++    ``lin_search``, which is the code path that resolves the very first and 
+the
++    very last positions correctly.
++    """
++    array = list(range(9))
+-    assert ite_ternary_search(array, 99) == 99
++    assert ite_ternary_search(array, 8) == 8
+-    array = list(range(0, 200, 3))
++    array = list(range(0, 27, 3))
+@@ -104,5 +109,5 @@
+-    array = list(range(0, 200, 2))
++    array = list(range(0, 18, 2))
+@@ -178,21 +183,26 @@
+-    """Boundary elements of a sorted list are found."""
+-    array = list(range(100))
+-    assert rec_ternary_search(0, len(array) - 1, array, 0) == 0
+-    assert rec_ternary_search(0, len(array) - 1, array, 99) == 99
++    """Boundary elements of a sorted list are found.
++
++    ``right`` is an exclusive upper bound, so ``len(array)`` must be passed.
++    The list stays shorter than ``precision`` so the call is delegated to
++    ``lin_search``.
++    """
++    array = list(range(9))
++    assert rec_ternary_search(0, len(array), array, 0) == 0
++    assert rec_ternary_search(0, len(array), array, 8) == 8
+-    array = list(range(0, 200, 3))
++    array = list(range(0, 27, 3))
+-        assert rec_ternary_search(0, len(array) - 1, array, value) == index
++        assert rec_ternary_search(0, len(array), array, value) == index
+-    array = list(range(0, 200, 2))
+-    assert rec_ternary_search(0, len(array) - 1, array, 101) == -1
++    array = list(range(0, 18, 2))
++    assert rec_ternary_search(0, len(array), array, 101) == -1
+@@ -201,5 +211,5 @@
+-    rec_ternary_search(0, len(array) - 1, array, 11)
++    rec_ternary_search(0, len(array), array, 11)
+@@ -237,6 +247,6 @@
+-        list(range(10)),
+-        list(range(0, 50, 2)),
++        list(range(9)),
++        list(range(0, 18, 2)),
+@@ -247,8 +257,8 @@
+-        recursive = rec_ternary_search(0, len(array) - 1, array, target)
++        recursive = rec_ternary_search(0, len(array), array, target)
+-            assert iterative == -1
++            assert iterative == -1
+✓ [Reflector]  Patch applied, re-executing...
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox i2l2oonzna8y25zdhae11 | exit_code=0 | 4721ms (create 329
+/ pip 2014 / pytest 1143)
+✓ [Executor]  All tests passed!  Coverage: 62%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_calib_B_r1\tests\test_searches__ternary
+_search.py
+
+(8/12) strings/is_pangram.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\strings\\is_pangram.py'})
+✓ [Generator]  Generated test_is_pangram.py (185 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.88 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.70
+  ├─ mock correctness:  1.00
+  └─ code consistency:  0.90
+  Intentionally skipped (anti-gaming):
+    • if __name__ == "__main__" guard (doctest.testmod + benchmark()) — script 
+entrypoint, not unit-testable without executing the module as a script
+  Actionable weaknesses:
+    •  `test_is_pangram_faster_ignores_non_ascii_letters` expects non-ASCII 
+letters to be ignored, but `is_pangram_faster` uses `.islower()`/`.isupper()` 
+and then indexes `flag[ord(char) - 97]`; for `'é'`, `ord('é') - 97 == 136`, 
+which raises `IndexError`. This test will fail.
+    •  `builtins` is imported but never used (ruff F401).
+    •  `test_all_implementations_agree` asserts only that the three 
+implementations agree with each other, not that they return the expected 
+boolean value; a shared logic bug would pass this test.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox igvu6dqfbwdyq2yuuzx1e | exit_code=1 | 4853ms (create 311
+/ pip 1862 / pytest 1277)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 57 items
+
+test_is_pangram.py::test_is_pangram_positive[The quick brown fox jumps over the
+lazy dog] PASSED [  1%]
+test_is_pangram.py::test_is_pangram_positive[Waltz, bad nymph, for quick jigs 
+vex.] PASSED [  3%
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Episodic memory disabled — skipping retrieval
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: AssertionError
+  ├─ root cause:    The test assumed `is_pangram_faster` silently ignores 
+non-ASCII lowercase letters, but the implementation indexes a 26-slot list with
+`ord(char) - 97`, so a character like 'é' (ord 233) raises IndexError; the 
+test's expectation does not match the real API behavior.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [103, 104, 105, 106, 107]
+🧠 [Reflector]  Changes made:
+@@ -1,5 +1,4 @@
+-import builtins
+@@ -101,9 +100,22 @@
+-def test_is_pangram_faster_ignores_non_ascii_letters():
+-    """Non-ASCII letters must not raise IndexError and are ignored."""
+-    # 'é' is alphabetic but not in a-z; must not break the ord()-97 indexing.
+-    assert is_pangram_faster("abcdefghijklmnopqrstuvwxyzé") is True
+-    assert is_pangram_faster("é") is False
++def test_is_pangram_faster_ignores_non_letters():
++    """Digits, punctuation and whitespace are ignored by the flag table."""
++    assert is_pangram_faster("The quick brown fox jumps over the lazy dog 
+123!") is True
++    assert is_pangram_faster("   \t\n  ") is False
++
++
++def test_is_pangram_faster_raises_on_non_ascii_letters():
++    """Non-ASCII letters fall outside the 26-slot flag table.
++
++    ``is_pangram_faster`` indexes a fixed 26-element list with
++    ``ord(char) - 97`` (or ``- 65``), so lowercase/uppercase letters beyond
++    the ASCII range produce an out-of-range index instead of being ignored.
++    """
++    with pytest.raises(IndexError):
++        is_pangram_faster("abcdefghijklmnopqrstuvwxyz\u00e9")
++
++    with pytest.raises(IndexError):
++        is_pangram_faster("\u00e9")
+@@ -183,3 +195,3 @@
+-        assert benchmark() is None
++        assert benchmark() is None
+✓ [Reflector]  Patch applied, re-executing...
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox ix0p625yb7n1dtkwu2mes | exit_code=0 | 3913ms (create 344
+/ pip 1763 / pytest 1098)
+✓ [Executor]  All tests passed!  Coverage: 89%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_calib_B_r1\tests\test_strings__is_pangr
+am.py
+
+(9/12) conversions/roman_numerals.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\conversions\\roman_numerals.
+py'})
+✓ [Generator]  Generated test_roman_numerals.py (170 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.88 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.78
+  ├─ mock correctness:  1.00
+  └─ code consistency:  1.00
+  Intentionally skipped (anti-gaming):
+    • `if __name__ == "__main__":` doctest runner — module entrypoint / doctest
+harness, not a unit-test target.
+  Actionable weaknesses:
+    •  `test_int_to_roman_negative_returns_empty_string` asserts the wrong 
+behavior and will fail: `int_to_roman(-5)` returns `"CMXCV"`, not `""`, because
+`divmod` with a negative number produces a positive remainder.
+    •  `test_int_to_roman_does_not_mutate_input` is vacuous because Python 
+integers are immutable, so the test cannot meaningfully verify mutation 
+behavior.
+    •  `test_roman_table_is_descending_and_complete` claims completeness but 
+only checks length and endpoints, not all 13 expected table entries.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox ikji5kast69hmokqlqmuo | exit_code=1 | 3994ms (create 305
+/ pip 1857 / pytest 1129)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 70 items
+
+test_roman_numerals.py::test_roman_table_is_descending_and_complete PASSED [  
+1%]
+test_roman_numerals.py::test_roman_to_int_happy_path[I-1] PASSED         [  2%]
+test_roman_numerals.py::test_roman_to_
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Episodic memory disabled — skipping retrieval
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: AssertionError
+  ├─ root cause:    int_to_roman does not special-case negative numbers: 
+divmod(-5, 1000) yields (-1, 995), so it emits an empty 'M' block and then 
+encodes 995, returning 'CMXCV' instead of the '' the test expects.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [130, 131, 132]
+🧠 [Reflector]  Changes made:
+@@ -128,7 +128,14 @@
+-def test_int_to_roman_negative_returns_empty_string():
+-    """Negative numbers produce no symbols and yield an empty string."""
+-    assert int_to_roman(-5) == ""
++def test_int_to_roman_negative_input_is_not_supported():
++    """Negative integers are outside the documented domain of the function.
++
++    ``int_to_roman`` does no range checking, so a negative dividend makes
++    ``divmod`` return a negative factor followed by the complement
++    (``divmod(-5, 1000) == (-1, 995)``). The empty ``"M" * -1`` block is
++    dropped and the complement is encoded, so ``-5`` renders as ``"CMXCV"``
++    (i.e. 995) rather than a meaningful numeral.
++    """
++    assert int_to_roman(-5) == "CMXCV"
+@@ -168,3 +175,3 @@
+-        assert roman_to_int(int_to_roman(number)) == number
++        assert roman_to_int(int_to_roman(number)) == number
+✓ [Reflector]  Patch applied, re-executing...
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox iw299jq866zy4qkfd8bpp | exit_code=0 | 5937ms (create 332
+/ pip 2521 / pytest 1675)
+✓ [Executor]  All tests passed!  Coverage: 91%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_calib_B_r1\tests\test_conversions__roma
+n_numerals.py
+
+(10/12) conversions/hexadecimal_to_decimal.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\conversions\\hexadecimal_to_
+decimal.py'})
+✓ [Generator]  Generated test_hexadecimal_to_decimal.py (172 lines, 1 file(s) 
+read via tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.88 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.72
+  ├─ mock correctness:  1.00
+  └─ code consistency:  0.90
+  Intentionally skipped (anti-gaming):
+    • if __name__ == "__main__": doctest.testmod() runner — executable script 
+entrypoint / doctest harness, not a unit-testable function; exercising it would
+only re-run doctests already covered by direct calls
+  Actionable weaknesses:
+    •  test_non_hexadecimal_input_raises ("-" case) and 
+test_lone_minus_sign_raises_non_hex_error assert a ValueError for a bare '-', 
+but the implementation strips the '-' first, leaving an empty body; all() over 
+an empty string is True, so the function returns -0 == 0 without raising. Both 
+tests will fail against the real source.
+    •  test_matches_builtin_for_negatives is wrong: hex(-1) == '-0x1', so 
+hex_to_decimal('-0x1') has its '-' stripped leaving '0x1', which contains 'x' 
+and raises ValueError('Non-hexadecimal value...'). Every parametrized negative 
+value fails.
+    •  Two type-only assertions (assert isinstance(result, int)) add little 
+beyond the exact-value assertions already present.
+    •  Inconsistent error-assertion style: most error tests use `with 
+pytest.raises(ValueError) as exc_info` + substring, while two use the `match=` 
+kwarg.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox is8zphtssymp6roa5fp9u | exit_code=1 | 4340ms (create 300
+/ pip 2352 / pytest 1001)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 62 items
+
+test_hexadecimal_to_decimal.py::TestHexTable::test_hex_table_has_sixteen_entrie
+s PASSED [  1%]
+test_hexadecimal_to_decimal.py::TestHexTable::test_hex_table_maps_digits_and_le
+tters PASSED [  3%]
+test_h
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Episodic memory disabled — skipping retrieval
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+⚠ [Reflector]  Structured output failed (parse_error) — retrying once with 
+thinking disabled
+  ├─ classification: AssertionError
+  ├─ root cause:    The test incorrectly assumes a bare '-' raises ValueError 
+(it actually returns 0 since the empty body passes the all() check), and the 
+negative round-trip test passes hex(value) which includes the '0x' prefix that 
+the function rejects.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [135, 141, 172]
+🧠 [Reflector]  Changes made:
+@@ -125,5 +125,4 @@
+-            "-",
+@@ -137,8 +136,7 @@
+-    def test_lone_minus_sign_raises_non_hex_error(self):
+-        """A bare '-' leaves an empty body, which is reported as 
+non-hexadecimal."""
+-        with pytest.raises(ValueError, match="Non-hexadecimal"):
+-            hex_to_decimal("-")
++    def test_lone_minus_sign_returns_zero(self):
++        """A bare '-' leaves an empty body, which sums to zero."""
++        assert hex_to_decimal("-") == 0
+@@ -170,3 +168,3 @@
+-        assert hex_to_decimal(hex(value)) == value
++        assert hex_to_decimal(hex(value)[2:]) == value
+✓ [Reflector]  Patch applied, re-executing...
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox itqkjcv12jrojocgsxdr3 | exit_code=1 | 4748ms (create 347
+/ pip 1889 / pytest 1111)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 61 items
+
+test_hexadecimal_to_decimal.py::TestHexTable::test_hex_table_has_sixteen_entrie
+s PASSED [  1%]
+test_hexadecimal_to_decimal.py::TestHexTable::test_hex_table_maps_digits_and_le
+tters PASSED [  3%]
+test_h
+→ [Router]  Tests failed. Routing to Reflector (2/3)
+🧠 [Reflector]  Analyzing error (attempt 2/3)...
+🧠 [Reflector]  Episodic memory disabled — skipping retrieval
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: AssertionError
+  ├─ root cause:    The round-trip test used hex(value)[2:] on a negative 
+value, which slices the '0x' prefix incorrectly ('-0x1' -> 'x1') and produces 
+an invalid hex string instead of '-1'.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [170]
+🧠 [Reflector]  Changes made:
+@@ -168,3 +168,4 @@
+-        assert hex_to_decimal(hex(value)[2:]) == value
++        hex_string = hex(value).replace("0x", "")
++        assert hex_to_decimal(hex_string) == value
+✓ [Reflector]  Patch applied, re-executing...
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox i8e7i45ckg9y0b1cpht2o | exit_code=0 | 5100ms (create 307
+/ pip 2268 / pytest 1735)
+✓ [Executor]  All tests passed!  Coverage: 88%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_calib_B_r1\tests\test_conversions__hexa
+decimal_to_decimal.py
+
+(11/12) data_structures/queues/circular_queue.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\data_structures\\queues\\cir
+cular_queue.py'})
+✓ [Generator]  Generated test_circular_queue.py (284 lines, 1 file(s) read via 
+tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 1.00 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 1.00
+  ├─ mock correctness:  1.00
+  └─ code consistency:  1.00
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox inyjz6z4na8v7lzolf1gz | exit_code=0 | 5895ms (create 554
+/ pip 2181 / pytest 1143)
+✓ [Executor]  All tests passed!  Coverage: 100%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_calib_B_r1\tests\test_data_structures__
+queues__circular_queue.py
+
+(12/12) data_structures/linked_list/doubly_linked_list.py
+
+Starting LangGraph FSM...
+
+✨ [Generator]  Calling LLM (deepseek:deepseek-v4-flash) with tools...
+  → tool_call: read_file({'path': 
+'D:\\Documents\\Study\\Projects\\algorithms-bench\\data_structures\\linked_list
+\\doubly_linked_list.py'})
+✓ [Generator]  Generated test_doubly_linked_list.py (372 lines, 1 file(s) read 
+via tools)
+🧐 [Evaluator]  Scoring generated test file...
+🧐 [Evaluator]  Overall: 0.87 (PASS)
+  ├─ testable coverage: 1.00
+  ├─ assertion quality: 0.65
+  ├─ mock correctness:  1.00
+  └─ code consistency:  0.90
+  Intentionally skipped (anti-gaming):
+    • if __name__ == '__main__' doctest runner — CLI/doctest entrypoint, not 
+unit-testable
+  Actionable weaknesses:
+    •  test_insert_at_nth_out_of_range_raises treats valid indices 1 and 5 as 
+out-of-range for a 5-element list; valid insertion positions are 0..5, so those
+parametrized cases will fail.
+    •  Importing test_doubly_linked_list into the test module causes pytest to 
+collect the source self-test as an extra top-level test, so it runs twice: once
+directly and once inside the wrapper.
+    •  test_delete_from_empty_list_raises codifies an incidental AttributeError
+from dereferencing None rather than a documented list exception.
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox imc6qkk6u5qcf4w81vs8v | exit_code=1 | 5099ms (create 523
+/ pip 2032 / pytest 1284)
+✗ [Executor]  Tests failed:
+============================= test session starts 
+==============================
+platform linux -- Python 3.13.16, pytest-9.0.3, pluggy-1.7.0 -- 
+/usr/local/bin/python
+cachedir: .pytest_cache
+rootdir: /workspace
+plugins: platformdirs-4.13.5, cov-7.1.0, anyio-4.15.1
+collecting ... collected 42 items
+
+test_doubly_linked_list.py::test_doubly_linked_list PASSED               [  2%]
+test_doubly_linked_list.py::test_node_initialization_defaults PASSED     [  4%]
+test_doubly_linked_list.py::test_node_st
+→ [Router]  Tests failed. Routing to Reflector (1/3)
+🧠 [Reflector]  Analyzing error (attempt 1/3)...
+🧠 [Reflector]  Episodic memory disabled — skipping retrieval
+🧠 [Reflector]  Generating fix via CoT (structured + thinking)...
+  ├─ classification: AssertionError
+  ├─ root cause:    The parametrization test_insert_at_nth_out_of_range_raises 
+uses a 5-node list (valid insert indices 0..5) but includes indices 1 and 5, 
+which are legal positions and therefore correctly do not raise IndexError.
+  ├─ strategy:      minimal_patch
+  └─ affected lines: [144, 150]
+🧠 [Reflector]  Changes made:
+@@ -142,7 +142,11 @@
+-@pytest.mark.parametrize("index", [-1, -100, 1, 5, 6])
++@pytest.mark.parametrize("index", [-1, -100, 6, 7, 100])
+-    """Out-of-range indices raise IndexError."""
++    """Out-of-range indices raise IndexError.
++
++    A 5-node list accepts insertion indices 0 through 5 inclusive, so only
++    indices outside that closed range are invalid.
++    """
+@@ -370,3 +374,3 @@
+-    assert backwards == list(reversed(list(linked_list)))
++    assert backwards == list(reversed(list(linked_list)))
+✓ [Reflector]  Patch applied, re-executing...
+⚡ [Executor]  Creating E2B sandbox...
+⚡ [Executor]  Running pytest in sandbox...
+⚡ [Executor]  Sandbox itu4cleb7vdebtyu31wxw | exit_code=0 | 6548ms (create 285
+/ pip 2991 / pytest 1380)
+✓ [Executor]  All tests passed!  Coverage: 97%
+→ [Router]  Tests passed! Routing to END.
+
+✨ Test file saved to: 
+benchmark_results\flash\runs\2026-10-30_calib_B_r1\tests\test_data_structures__
+linked_list__doubly_linked_list.py
+
+
+                              Per-module results                               
+┌──────────┬────────┬─────────┬─────────┬──────────┬──────┬─────────┬─────────┐
+│ Module   │ Status │ Retries │ EvalRej │ ExecRet… │ MemΔ │ Covera… │ Time(s) │
+├──────────┼────────┼─────────┼─────────┼──────────┼──────┼─────────┼─────────┤
+│ maths/p… │ done   │       1 │       0 │        1 │    - │    100% │   115.8 │
+│ maths/l… │ done   │       0 │       0 │        0 │    - │     70% │    19.7 │
+│ sorts/s… │ done   │       0 │       0 │        0 │    - │     73% │    16.8 │
+│ sorts/h… │ done   │       1 │       0 │        1 │    - │     77% │    53.6 │
+│ sorts/c… │ done   │       0 │       0 │        0 │    - │     83% │    21.8 │
+│ searche… │ done   │       1 │       0 │        1 │    - │     97% │    69.3 │
+│ searche… │ done   │       1 │       0 │        1 │    - │     62% │   148.2 │
+│ strings… │ done   │       1 │       0 │        1 │    - │     89% │    56.6 │
+│ convers… │ done   │       1 │       0 │        1 │    - │     91% │    68.8 │
+│ convers… │ done   │       2 │       0 │        2 │    - │     88% │    72.1 │
+│ data_st… │ done   │       0 │       0 │        0 │    - │    100% │    40.6 │
+│ data_st… │ done   │       1 │       0 │        1 │    - │     97% │    91.6 │
+└──────────┴────────┴─────────┴─────────┴──────────┴──────┴─────────┴─────────┘
+
+
+                               Aggregate summary                               
+┌────────────────────────────────────────────────┬────────────────────────────┐
+│ Total modules                                  │ 12                         │
+│ One-shot pass rate                             │ 33.3%                      │
+│ Final pass rate (after self-healing)           │ 100.0%                     │
+│ Avg retries (total)                            │ 0.75                       │
+│   ├─ avg Evaluator rejects                     │ 0                          │
+│   └─ avg real Executor retries                 │ 0.75                       │
+│ Total Evaluator rejects across run             │ 0                          │
+│ Avg coverage                                   │ 85.6%                      │
+│ Avg wall time per module                       │ 64.6s                      │
+│ Sandbox infra failures (retried)               │ 0                          │
+│ Reflector attempts (failed) / truncated /      │ 9 (0) / 0 / 1 / 1          │
+│ parse errors / recovered                       │                            │
+│ Modules ended by infra failure                 │ 0                          │
+│ Avg time split (create / pip / pytest / LLM)   │ 0.7s / 3.8s / 3.0s / 53.6s │
+│ LLM calls / prompt / completion tokens         │ 46 / 190853 / 134115       │
+└────────────────────────────────────────────────┴────────────────────────────┘
+
+Results saved to: benchmark_results\flash\2026-10-30_calib_B_r1.json

@@ -36,6 +36,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from auto_sdet.tools.error_signature import extract_error_signature  # noqa: E402
+from auto_sdet.tools.memory_store import build_error_signature  # noqa: E402
 
 GRID = [round(0.30 + 0.025 * i, 3) for i in range(27)]   # 0.30 … 0.95
 
@@ -49,6 +50,8 @@ def collect(run_dirs: list[Path]) -> list[dict]:
             if e["kind"] != "reflection":
                 continue
             # The Reflector saw this failure output; its diagnosis helps labeling.
+            latest_error = e.get("latest_error") or ""
+            basename = Path(e["module"]).name
             samples.append({
                 "id": f"{run_dir.name}:{e['module']}:{e['retry']}",
                 "run": run_dir.name,
@@ -58,6 +61,12 @@ def collect(run_dirs: list[Path]) -> list[dict]:
                 "signature": extract_error_signature(e.get("latest_error") or ""),
                 "classification": e.get("classification"),
                 "root_cause": e.get("root_cause"),
+                # The legacy variant's representations of the same failure, for comparison:
+                # query = first 300 chars of the output + filename; document =
+                # "<classification>: <root_cause up to first '.'> [in file]".
+                "legacy_query": f"{latest_error[:300]} [in {basename}]",
+                "legacy_document": (build_error_signature(e["classification"], e["root_cause"], basename)
+                                    if e.get("classification") else None),
             })
     return samples
 
@@ -78,7 +87,9 @@ def evaluate(samples: list[dict], labels: dict[str, str]) -> dict:
     for i, j in combinations(range(len(labeled)), 2):
         if labeled[i]["module"] == labeled[j]["module"]:
             continue
-        pairs.append((float(sims[i, j]), labels[labeled[i]["id"]] == labels[labeled[j]["id"]]))
+        li, lj = labels[labeled[i]["id"]], labels[labeled[j]["id"]]
+        # "other" is a catch-all, not a shared mechanism — never relevant.
+        pairs.append((float(sims[i, j]), li == lj and li != "other"))
     n_relevant = sum(rel for _, rel in pairs)
 
     curve = []
@@ -93,12 +104,13 @@ def evaluate(samples: list[dict], labels: dict[str, str]) -> dict:
                       "recall": None if recall is None else round(recall, 3), "f1": round(f1, 3)})
 
     best = max(curve, key=lambda c: (c["f1"], c["threshold"]))
+    legacy = _evaluate_legacy(labeled, labels)
     rel_sims = [s for s, rel in pairs if rel]
     irr_sims = [s for s, rel in pairs if not rel]
     return {
         "n_samples": len(labeled),
         "n_modules": len({s["module"] for s in labeled}),
-        "label_counts": {lab: sum(1 for s in labeled if labels[s["id"]] == lab) for lab in sorted(set(labels.values()))},
+        "label_counts": {lab: sum(1 for v in labels.values() if v == lab) for lab in sorted(set(labels.values()))},
         "n_cross_module_pairs": len(pairs),
         "n_relevant_pairs": n_relevant,
         "relevant_similarity": _describe(rel_sims),
@@ -107,6 +119,43 @@ def evaluate(samples: list[dict], labels: dict[str, str]) -> dict:
         "chosen_threshold": best["threshold"],
         "chosen_point": best,
         "rule": "argmax F1 over cross-module pairs; ties → higher threshold",
+        "legacy_comparison": legacy,
+    }
+
+
+def _evaluate_legacy(labeled: list[dict], labels: dict[str, str]) -> dict:
+    """
+    Same labeled pairs, scored the way config A retrieves: query_i vs document_j
+    (ordered pairs — query and document are different texts), similarity
+    1/(1+squared L2) on normalized embeddings, threshold 0.4.
+    """
+    usable = [s for s in labeled if s.get("legacy_document")]
+    q = embed([s["legacy_query"] for s in usable])
+    d = embed([s["legacy_document"] for s in usable])
+    sq_l2 = 2.0 - 2.0 * (q @ d.T)
+    sims = 1.0 / (1.0 + sq_l2)
+    rows = []
+    for i in range(len(usable)):
+        for j in range(len(usable)):
+            if usable[i]["module"] == usable[j]["module"]:
+                continue
+            li, lj = labels[usable[i]["id"]], labels[usable[j]["id"]]
+            rows.append((float(sims[i, j]), li == lj and li != "other"))
+    n_rel = sum(r for _, r in rows)
+    retrieved = [r for s, r in rows if s >= 0.4]
+    tp = sum(retrieved)
+    precision = tp / len(retrieved) if retrieved else None
+    recall = tp / n_rel if n_rel else None
+    return {
+        "n_ordered_cross_module_pairs": len(rows),
+        "n_relevant": n_rel,
+        "at_threshold_0.4": {
+            "retrieved_pairs": len(retrieved), "true_pairs": tp,
+            "precision": None if precision is None else round(precision, 3),
+            "recall": None if recall is None else round(recall, 3),
+        },
+        "relevant_similarity": _describe([s for s, r in rows if r]),
+        "irrelevant_similarity": _describe([s for s, r in rows if not r]),
     }
 
 
