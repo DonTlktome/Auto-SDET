@@ -73,6 +73,24 @@ BENCH_MODULES = [
     "dynamic_programming/fibonacci.py",
 ]
 
+# Held-out modules for calibrating the signature-memory threshold (config C).
+# Same repo and kinds of modules as BENCH_MODULES, none of them in it, all
+# stdlib-only with absolute imports. Never used for reported benchmark numbers.
+CALIBRATION_MODULES = [
+    "maths/perfect_number.py",
+    "maths/lucas_series.py",
+    "sorts/selection_sort.py",
+    "sorts/heap_sort.py",
+    "sorts/counting_sort.py",
+    "searches/jump_search.py",
+    "searches/ternary_search.py",
+    "strings/is_pangram.py",
+    "conversions/roman_numerals.py",
+    "conversions/hexadecimal_to_decimal.py",
+    "data_structures/queues/circular_queue.py",
+    "data_structures/linked_list/doubly_linked_list.py",
+]
+
 # Environment each configuration runs under (read by auto_sdet.config.Settings).
 CONFIGS = {
     "A": {
@@ -379,6 +397,7 @@ def build_metadata(args: argparse.Namespace, run_name: str, modules: list[str], 
             "base_packages": list(e2b_sandbox.BASE_TEST_PACKAGES),
             "template": "e2b code-interpreter default",
         },
+        "module_set": args.module_set,
         "module_order": modules,
         "bench_dir": args.bench_dir.as_posix(),
         "bench_commit": _git("rev-parse", "HEAD", cwd=args.bench_dir),
@@ -413,6 +432,8 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=None, help="Run only the first N modules (smoke test)")
     parser.add_argument("--resume", action="store_true", help="Continue an interrupted run, skipping finished modules")
     parser.add_argument("--note", default="", help="Free-form note stored in metadata (e.g. concurrency)")
+    parser.add_argument("--module-set", choices=["benchmark", "calibration"], default="benchmark",
+                        help="calibration = held-out modules for threshold calibration (not benchmark numbers)")
     parser.add_argument("--cosine-threshold", type=float, default=None,
                         help="Config C only: calibrated cosine threshold for signature memory")
     parser.add_argument("--calibration-file", type=Path, default=None,
@@ -430,7 +451,8 @@ def main() -> None:
             sys.exit(1)
         os.environ["MEMORY_COSINE_THRESHOLD"] = str(args.cosine_threshold)
 
-    modules = BENCH_MODULES[: args.limit] if args.limit else BENCH_MODULES
+    module_list = CALIBRATION_MODULES if args.module_set == "calibration" else BENCH_MODULES
+    modules = module_list[: args.limit] if args.limit else module_list
     missing = [m for m in modules if not (args.bench_dir / m).exists()]
     if missing:
         # A silently skipped module changes the denominator — refuse to run.
@@ -438,7 +460,8 @@ def main() -> None:
         sys.exit(1)
 
     suffix = f"_limit{args.limit}" if args.limit else ""
-    run_name = f"{args.date}_{args.config}_r{args.run_index}{suffix}"
+    prefix = "calib_" if args.module_set == "calibration" else ""
+    run_name = f"{args.date}_{prefix}{args.config}_r{args.run_index}{suffix}"
     output = args.results_dir / f"{run_name}.json"
     run_dir = args.results_dir / "runs" / run_name
     tests_dir = run_dir / "tests"
