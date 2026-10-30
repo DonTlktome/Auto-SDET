@@ -144,6 +144,19 @@ def test_unknown_output_falls_back_to_tail():
     assert "RuntimeError: boom" in sig
 
 
+def test_width_truncated_summary_messages_skipped():
+    """Observed in calibration run: '- Impor...' fragments from an 80-col terminal."""
+    output = HEADER + """
+=================================== FAILURES ===================================
+_________________________________ test_main ____________________________________
+E   ModuleNotFoundError: No module named 'maths'
+=========================== short test summary info ============================
+FAILED test_perfect_number.py::test_main_block - Impor...
+FAILED test_perfect_number.py::test_main_other - I...
+"""
+    assert extract_error_signature(output) == "ModuleNotFoundError: No module named 'maths'"
+
+
 def test_line_cap():
     many = HEADER + "\n".join(f"FAILED test_x.py::t{i} - ValueError: case {chr(97 + i)}" for i in range(10))
     assert len(extract_error_signature(many).splitlines()) == 6

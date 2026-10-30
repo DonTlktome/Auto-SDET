@@ -80,7 +80,9 @@ def _pytest_lines(output: str) -> list[str]:
                 current.append(text)
             continue
         m = _SUMMARY_LINE.match(stripped)
-        if m and m.group(3):
+        # pytest cuts summary messages to the terminal width ("- Impor...");
+        # a cut message is noise — the full text is in the block's `E` lines.
+        if m and m.group(3) and not m.group(3).endswith("..."):
             summary.append(m.group(3))
 
     picked: list[str] = list(summary)
